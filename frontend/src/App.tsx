@@ -1,14 +1,20 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Patients from './pages/Patients';
-import Queue from './pages/Queue';
-import MedicalRecords from './pages/MedicalRecords';
-import PreListing from './pages/PreListing';
-import QueueDisplay from './pages/QueueDisplay';
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Patients from "./pages/Patients";
+import Queue from "./pages/Queue";
+import MedicalRecords from "./pages/MedicalRecords";
+import Reports from "./pages/Reports";
+import PreListing from "./pages/PreListing";
+import QueueDisplay from "./pages/QueueDisplay";
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -31,6 +37,7 @@ function App() {
             <Route path="patients" element={<Patients />} />
             <Route path="queue" element={<Queue />} />
             <Route path="medical-records" element={<MedicalRecords />} />
+            <Route path="reports" element={<Reports />} />
           </Route>
         </Routes>
       </Router>

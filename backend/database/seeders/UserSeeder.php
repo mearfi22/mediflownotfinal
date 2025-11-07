@@ -17,7 +17,7 @@ class UserSeeder extends Seeder
         // Create default admin user
         User::create([
             'name' => 'Admin User',
-            'email' => 'admin@careconnect.com',
+            'email' => 'admin@mediflow.com',
             'password' => Hash::make('password'),
             'role' => 'admin',
         ]);
@@ -25,7 +25,7 @@ class UserSeeder extends Seeder
         // Create default staff user
         User::create([
             'name' => 'Staff User',
-            'email' => 'staff@careconnect.com',
+            'email' => 'staff@mediflow.com',
             'password' => Hash::make('password'),
             'role' => 'staff',
         ]);
@@ -33,7 +33,7 @@ class UserSeeder extends Seeder
         // Create Dr. Garcia
         User::create([
             'name' => 'Dr. Maria Garcia',
-            'email' => 'dr.garcia@careconnect.com',
+            'email' => 'dr.garcia@mediflow.com',
             'password' => Hash::make('password'),
             'role' => 'staff',
         ]);

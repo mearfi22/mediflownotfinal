@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { preRegistrationApi } from "../services/api";
@@ -263,7 +264,6 @@ const PreListing: React.FC = () => {
                     maxLength: { value: 10, message: "Age too long" },
                   })}
                   className="input bg-gray-50 cursor-not-allowed"
-                  style={{ caretColor: "transparent" }}
                 />
                 {errors.age && (
                   <p className="mt-1 text-sm text-red-600">
@@ -407,36 +407,15 @@ const PreListing: React.FC = () => {
                 >
                   Religion
                 </label>
-                <select
+                <input
                   id="religion"
+                  type="text"
+                  placeholder="Enter your religion (optional)"
                   {...register("religion", {
                     maxLength: { value: 100, message: "Religion too long" },
                   })}
                   className="input"
-                >
-                  <option value="">Select religion (optional)</option>
-                  <option value="Catholic">Catholic</option>
-                  <option value="Protestant">Protestant</option>
-                  <option value="Born Again Christian">
-                    Born Again Christian
-                  </option>
-                  <option value="Iglesia ni Cristo">Iglesia ni Cristo</option>
-                  <option value="Jehovah's Witness">Jehovah's Witness</option>
-                  <option value="Seventh-day Adventist">
-                    Seventh-day Adventist
-                  </option>
-                  <option value="Baptist">Baptist</option>
-                  <option value="Methodist">Methodist</option>
-                  <option value="Pentecostal">Pentecostal</option>
-                  <option value="Islam">Islam</option>
-                  <option value="Buddhism">Buddhism</option>
-                  <option value="Hinduism">Hinduism</option>
-                  <option value="Judaism">Judaism</option>
-                  <option value="Other Christian">Other Christian</option>
-                  <option value="Other">Other</option>
-                  <option value="None/Atheist">None/Atheist</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
-                </select>
+                />
                 {errors.religion && (
                   <p className="mt-1 text-sm text-red-600">
                     {errors.religion.message}

@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { Navigate, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import React, { useState } from "react";
+import { Navigate, Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 const Login: React.FC = () => {
   const { user, login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // Redirect if already logged in
   if (user) {
@@ -19,12 +19,14 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(
+        err.response?.data?.message || "Login failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -34,7 +36,7 @@ const Login: React.FC = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Red header bar */}
       <div className="absolute top-0 left-0 right-0 h-12 bg-primary"></div>
-      
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center mb-6">
           <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg border-4 border-primary">
@@ -76,7 +78,7 @@ const Login: React.FC = () => {
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
                   placeholder="Password"
@@ -104,12 +106,15 @@ const Login: React.FC = () => {
                 disabled={loading}
                 className="w-full bg-primary hover:bg-primary-dark text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Signing in...' : 'Login'}
+                {loading ? "Signing in..." : "Login"}
               </button>
             </div>
-            
+
             <div className="text-center">
-              <a href="#" className="text-primary text-sm hover:text-primary-dark">
+              <a
+                href="#"
+                className="text-primary text-sm hover:text-primary-dark"
+              >
                 Forgot Password?
               </a>
             </div>
@@ -121,14 +126,20 @@ const Login: React.FC = () => {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Demo Accounts</span>
+                <span className="px-2 bg-white text-gray-500">
+                  Demo Accounts
+                </span>
               </div>
             </div>
 
             <div className="mt-4 space-y-1">
               <div className="text-xs text-gray-500">
-                <p><strong>Admin:</strong> admin@careconnect.com / password</p>
-                <p><strong>Staff:</strong> staff@careconnect.com / password</p>
+                <p>
+                  <strong>Admin:</strong> admin@mediflow.com / password
+                </p>
+                <p>
+                  <strong>Staff:</strong> staff@mediflow.com / password
+                </p>
               </div>
             </div>
           </div>

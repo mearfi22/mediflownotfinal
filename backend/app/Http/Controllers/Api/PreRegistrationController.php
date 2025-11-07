@@ -21,7 +21,7 @@ class PreRegistrationController extends Controller
         $preRegistrations = PreRegistration::with('approver')
             ->orderBy('created_at', 'desc')
             ->paginate(15);
-            
+
         return response()->json($preRegistrations);
     }
 
@@ -31,19 +31,26 @@ class PreRegistrationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'full_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'address' => 'required|string|max:500',
+            'contact_number' => 'required|string|max:20',
+            'sex' => 'required|string|max:10',
+            'civil_status' => 'required|string|max:50',
+            'spouse_name' => 'nullable|string|max:255',
             'date_of_birth' => 'required|date',
-            'gender' => 'required|in:male,female,other',
-            'address' => 'required|string',
-            'contact_number' => 'required|string|max:255',
-            'civil_status' => 'nullable|string|max:255',
-            'religion' => 'nullable|string|max:255',
-            'philhealth_id' => 'nullable|string|max:255',
+            'age' => 'required|string|max:10',
+            'birthplace' => 'required|string|max:255',
+            'nationality' => 'required|string|max:100',
+            'religion' => 'nullable|string|max:100',
+            'occupation' => 'nullable|string|max:255',
             'reason_for_visit' => 'required|string',
+            'philhealth_id' => 'nullable|string|max:255',
         ]);
 
         $preRegistration = PreRegistration::create($validated);
-        
+
         return response()->json([
             'message' => 'Pre-registration submitted successfully. Please wait for approval.',
             'pre_registration' => $preRegistration
@@ -65,19 +72,26 @@ class PreRegistrationController extends Controller
     public function update(Request $request, PreRegistration $preRegistration): JsonResponse
     {
         $validated = $request->validate([
-            'full_name' => 'sometimes|required|string|max:255',
+            'last_name' => 'sometimes|required|string|max:255',
+            'first_name' => 'sometimes|required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'address' => 'sometimes|required|string|max:500',
+            'contact_number' => 'sometimes|required|string|max:20',
+            'sex' => 'sometimes|required|string|max:10',
+            'civil_status' => 'sometimes|required|string|max:50',
+            'spouse_name' => 'nullable|string|max:255',
             'date_of_birth' => 'sometimes|required|date',
-            'gender' => 'sometimes|required|in:male,female,other',
-            'address' => 'sometimes|required|string',
-            'contact_number' => 'sometimes|required|string|max:255',
-            'civil_status' => 'nullable|string|max:255',
-            'religion' => 'nullable|string|max:255',
-            'philhealth_id' => 'nullable|string|max:255',
+            'age' => 'sometimes|required|string|max:10',
+            'birthplace' => 'sometimes|required|string|max:255',
+            'nationality' => 'sometimes|required|string|max:100',
+            'religion' => 'nullable|string|max:100',
+            'occupation' => 'nullable|string|max:255',
             'reason_for_visit' => 'sometimes|required|string',
+            'philhealth_id' => 'nullable|string|max:255',
         ]);
 
         $preRegistration->update($validated);
-        
+
         return response()->json($preRegistration);
     }
 
@@ -87,7 +101,7 @@ class PreRegistrationController extends Controller
     public function destroy(PreRegistration $preRegistration): JsonResponse
     {
         $preRegistration->delete();
-        
+
         return response()->json(['message' => 'Pre-registration deleted successfully']);
     }
 
@@ -102,7 +116,7 @@ class PreRegistrationController extends Controller
 
         // Create patient
         $patient = Patient::create($preRegistration->toPatientArray());
-        
+
         // Create queue entry
         $queueNumber = Queue::getNextQueueNumber();
         $queue = Queue::create([

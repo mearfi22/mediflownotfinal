@@ -8,13 +8,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Patient extends Model
 {
     protected $fillable = [
-        'full_name',
+        'last_name',
+        'first_name',
+        'middle_name',
         'date_of_birth',
+        'age',
         'gender',
+        'birthplace',
+        'nationality',
+        'civil_status',
+        'spouse_name',
+        'religion',
+        'occupation',
         'address',
         'contact_number',
-        'civil_status',
-        'religion',
         'philhealth_id',
         'reason_for_visit',
         'status'
@@ -22,6 +29,10 @@ class Patient extends Model
 
     protected $casts = [
         'date_of_birth' => 'date',
+    ];
+
+    protected $appends = [
+        'full_name'
     ];
 
     public function medicalRecords(): HasMany
@@ -34,8 +45,10 @@ class Patient extends Model
         return $this->hasMany(Queue::class);
     }
 
-    public function getAgeAttribute()
+    public function getFullNameAttribute()
     {
-        return $this->date_of_birth->age;
+        $middleInitial = $this->middle_name ? strtoupper(substr($this->middle_name, 0, 1)) . '.' : '';
+        $fullName = trim($this->last_name . ', ' . $this->first_name . ' ' . $middleInitial);
+        return $fullName ?: 'Unknown Patient';
     }
 }

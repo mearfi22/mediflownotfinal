@@ -8,15 +8,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PreRegistration extends Model
 {
     protected $fillable = [
-        'full_name',
-        'date_of_birth',
-        'gender',
+        'last_name',
+        'first_name',
+        'middle_name',
         'address',
         'contact_number',
+        'sex',
         'civil_status',
+        'spouse_name',
+        'date_of_birth',
+        'age',
+        'birthplace',
+        'nationality',
         'religion',
-        'philhealth_id',
+        'occupation',
         'reason_for_visit',
+        'philhealth_id',
         'status',
         'approved_by',
         'approved_at'
@@ -35,13 +42,20 @@ class PreRegistration extends Model
     public function toPatientArray(): array
     {
         return [
-            'full_name' => $this->full_name,
+            'last_name' => $this->last_name,
+            'first_name' => $this->first_name,
+            'middle_name' => $this->middle_name,
             'date_of_birth' => $this->date_of_birth,
-            'gender' => $this->gender,
+            'age' => $this->age,
+            'gender' => $this->sex, // Convert 'sex' to 'gender'
+            'birthplace' => $this->birthplace,
+            'nationality' => $this->nationality,
+            'civil_status' => $this->civil_status,
+            'spouse_name' => $this->spouse_name,
+            'religion' => $this->religion,
+            'occupation' => $this->occupation,
             'address' => $this->address,
             'contact_number' => $this->contact_number,
-            'civil_status' => $this->civil_status,
-            'religion' => $this->religion,
             'philhealth_id' => $this->philhealth_id,
             'reason_for_visit' => $this->reason_for_visit,
         ];

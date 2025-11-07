@@ -13,7 +13,8 @@ class MedicalRecord extends Model
         'diagnosis',
         'treatment',
         'notes',
-        'doctor_name'
+        'doctor_name',
+        'pdf_file_path'
     ];
 
     protected $casts = [

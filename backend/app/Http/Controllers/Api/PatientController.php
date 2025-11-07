@@ -17,7 +17,7 @@ class PatientController extends Controller
         $patients = Patient::with(['queueEntries' => function($query) {
             $query->whereDate('queue_date', today());
         }])->paginate(15);
-        
+
         return response()->json($patients);
     }
 
@@ -27,19 +27,26 @@ class PatientController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'full_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'date_of_birth' => 'required|date',
+            'age' => 'required|string|max:10',
             'gender' => 'required|in:male,female,other',
-            'address' => 'required|string',
-            'contact_number' => 'required|string|max:255',
-            'civil_status' => 'nullable|string|max:255',
-            'religion' => 'nullable|string|max:255',
+            'birthplace' => 'required|string|max:255',
+            'nationality' => 'required|string|max:100',
+            'civil_status' => 'required|string|max:50',
+            'spouse_name' => 'nullable|string|max:255',
+            'religion' => 'nullable|string|max:100',
+            'occupation' => 'nullable|string|max:255',
+            'address' => 'required|string|max:500',
+            'contact_number' => 'required|string|max:20',
             'philhealth_id' => 'nullable|string|max:255',
             'reason_for_visit' => 'nullable|string',
         ]);
 
         $patient = Patient::create($validated);
-        
+
         return response()->json($patient, 201);
     }
 
@@ -58,20 +65,27 @@ class PatientController extends Controller
     public function update(Request $request, Patient $patient): JsonResponse
     {
         $validated = $request->validate([
-            'full_name' => 'sometimes|required|string|max:255',
+            'last_name' => 'sometimes|required|string|max:255',
+            'first_name' => 'sometimes|required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'date_of_birth' => 'sometimes|required|date',
+            'age' => 'sometimes|required|string|max:10',
             'gender' => 'sometimes|required|in:male,female,other',
-            'address' => 'sometimes|required|string',
-            'contact_number' => 'sometimes|required|string|max:255',
-            'civil_status' => 'nullable|string|max:255',
-            'religion' => 'nullable|string|max:255',
+            'birthplace' => 'sometimes|required|string|max:255',
+            'nationality' => 'sometimes|required|string|max:100',
+            'civil_status' => 'sometimes|required|string|max:50',
+            'spouse_name' => 'nullable|string|max:255',
+            'religion' => 'nullable|string|max:100',
+            'occupation' => 'nullable|string|max:255',
+            'address' => 'sometimes|required|string|max:500',
+            'contact_number' => 'sometimes|required|string|max:20',
             'philhealth_id' => 'nullable|string|max:255',
             'reason_for_visit' => 'nullable|string',
             'status' => 'sometimes|in:active,inactive',
         ]);
 
         $patient->update($validated);
-        
+
         return response()->json($patient);
     }
 
@@ -81,7 +95,7 @@ class PatientController extends Controller
     public function destroy(Patient $patient): JsonResponse
     {
         $patient->delete();
-        
+
         return response()->json(['message' => 'Patient deleted successfully']);
     }
 }
