@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { Patient } from "../types";
+import { Patient, Department, Doctor } from "../types";
 
 interface QueueModalProps {
   isOpen: boolean;
@@ -9,13 +9,21 @@ interface QueueModalProps {
   onSave: (data: {
     patient_id: number;
     reason_for_visit: string;
+    department_id?: number;
+    doctor_id?: number;
+    priority?: string;
   }) => Promise<void>;
   patients: Patient[];
+  departments?: Department[];
+  doctors?: Doctor[];
 }
 
 interface FormData {
   patient_id: number;
   reason_for_visit: string;
+  department_id?: number;
+  doctor_id?: number;
+  priority: string;
 }
 
 const QueueModal: React.FC<QueueModalProps> = ({
@@ -23,20 +31,78 @@ const QueueModal: React.FC<QueueModalProps> = ({
   onClose,
   onSave,
   patients,
+  departments = [],
+  doctors = [],
 }) => {
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>(doctors);
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
-  } = useForm<FormData>();
+  } = useForm<FormData>({
+    defaultValues: {
+      priority: "regular",
+    },
+  });
+
+  const watchedDepartmentId = watch("department_id");
+  const watchedPatientId = watch("patient_id");
+
+  // Auto-fill department, doctor, and reason when patient is selected
+  useEffect(() => {
+    if (watchedPatientId) {
+      const selectedPatient = patients.find(
+        (p) => p.id === Number(watchedPatientId)
+      );
+      if (selectedPatient) {
+        // Auto-fill department if available
+        if (selectedPatient.department_id) {
+          setValue("department_id", selectedPatient.department_id);
+        }
+        // Auto-fill doctor if available
+        if (selectedPatient.doctor_id) {
+          setValue("doctor_id", selectedPatient.doctor_id);
+        }
+        // Auto-fill reason for visit if available
+        if (selectedPatient.reason_for_visit) {
+          setValue("reason_for_visit", selectedPatient.reason_for_visit);
+        }
+        // Auto-fill priority if available
+        if (selectedPatient.priority) {
+          setValue("priority", selectedPatient.priority);
+        }
+      }
+    }
+  }, [watchedPatientId, patients, setValue]);
+
+  // Filter doctors based on selected department
+  useEffect(() => {
+    if (watchedDepartmentId) {
+      const filtered = doctors.filter(
+        (doctor) => doctor.department_id === watchedDepartmentId
+      );
+      setFilteredDoctors(filtered);
+    } else {
+      setFilteredDoctors(doctors);
+    }
+  }, [watchedDepartmentId, doctors]);
 
   const onSubmit = async (data: FormData) => {
     try {
       setLoading(true);
-      await onSave(data);
+      // Convert string values to numbers if needed
+      const processedData = {
+        ...data,
+        patient_id: Number(data.patient_id),
+        department_id: data.department_id ? Number(data.department_id) : undefined,
+        doctor_id: data.doctor_id ? Number(data.doctor_id) : undefined,
+        priority: data.priority || 'regular',
+      };
+      await onSave(processedData);
       reset();
       onClose();
     } catch (error) {
@@ -46,12 +112,6 @@ const QueueModal: React.FC<QueueModalProps> = ({
       setLoading(false);
     }
   };
-
-  const filteredPatients = patients.filter(
-    (patient) =>
-      patient.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.contact_number.includes(searchTerm)
-  );
 
   if (!isOpen) return null;
 
@@ -74,24 +134,6 @@ const QueueModal: React.FC<QueueModalProps> = ({
           onSubmit={handleSubmit(onSubmit)}
           className="p-4 sm:p-6 space-y-4 sm:space-y-6"
         >
-          {/* Patient Search */}
-          <div>
-            <label
-              htmlFor="patient-search"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Search Patient
-            </label>
-            <input
-              id="patient-search"
-              type="text"
-              placeholder="Type patient name or contact number..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input mb-2"
-            />
-          </div>
-
           {/* Patient Selection */}
           <div>
             <label
@@ -104,21 +146,94 @@ const QueueModal: React.FC<QueueModalProps> = ({
               id="patient_id"
               {...register("patient_id", {
                 required: "Patient selection is required",
-                valueAsNumber: true,
               })}
               className="input"
             >
               <option value="">Choose a patient</option>
-              {filteredPatients.map((patient) => (
+              {patients.map((patient) => (
                 <option key={patient.id} value={patient.id}>
                   {patient.full_name} - {patient.contact_number}
                 </option>
               ))}
-              \n{" "}
             </select>
             {errors.patient_id && (
               <p className="mt-1 text-sm text-red-600">
                 {errors.patient_id.message}
+              </p>
+            )}
+          </div>
+
+          {/* Department Selection */}
+          <div>
+            <label
+              htmlFor="department_id"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Department
+            </label>
+            <select
+              id="department_id"
+              {...register("department_id")}
+              className="input"
+            >
+              <option value="">Select Department (Optional)</option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Doctor Selection */}
+          <div>
+            <label
+              htmlFor="doctor_id"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Doctor
+            </label>
+            <select
+              id="doctor_id"
+              {...register("doctor_id")}
+              className="input"
+              disabled={!watchedDepartmentId}
+            >
+              <option value="">Select Doctor (Optional)</option>
+              {filteredDoctors.map((doctor) => (
+                <option key={doctor.id} value={doctor.id}>
+                  {doctor.full_name}
+                </option>
+              ))}
+            </select>
+            {!watchedDepartmentId && (
+              <p className="mt-1 text-sm text-gray-500">
+                Please select a department first
+              </p>
+            )}
+          </div>
+
+          {/* Priority Selection */}
+          <div>
+            <label
+              htmlFor="priority"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Priority *
+            </label>
+            <select
+              id="priority"
+              {...register("priority", { required: "Priority is required" })}
+              className="input"
+            >
+              <option value="regular">Regular</option>
+              <option value="senior">Senior Citizen</option>
+              <option value="pwd">PWD (Person with Disability)</option>
+              <option value="emergency">Emergency</option>
+            </select>
+            {errors.priority && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.priority.message}
               </p>
             )}
           </div>

@@ -19,6 +19,8 @@ class MedicalRecord extends Model
 
     protected $casts = [
         'visit_date' => 'date',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function patient(): BelongsTo

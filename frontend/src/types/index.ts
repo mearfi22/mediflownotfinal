@@ -2,7 +2,8 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "staff";
+  role: "admin" | "staff" | "doctor";
+  doctor_id?: number; // Links staff user to a doctor profile
 }
 
 export interface Patient {
@@ -24,7 +25,36 @@ export interface Patient {
   contact_number: string;
   philhealth_id?: string;
   reason_for_visit?: string;
+  department_id?: number;
+  doctor_id?: number;
+  department?: Department;
+  doctor?: Doctor;
+  priority?: "regular" | "senior" | "pwd" | "emergency";
   status: "active" | "inactive";
+  patient_uid?: string; // Unique patient ID
+  medical_records_count?: number; // Count of medical records
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Department {
+  id: number;
+  name: string;
+  doctors_count?: number;
+  queue_entries_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Doctor {
+  id: number;
+  department_id: number;
+  full_name: string;
+  email?: string;
+  phone?: string;
+  status: "active" | "inactive";
+  avg_consultation_minutes?: number;
+  department?: Department;
   created_at: string;
   updated_at: string;
 }
@@ -48,11 +78,19 @@ export interface Queue {
   queue_number: number;
   patient_id: number;
   reason_for_visit: string;
-  status: "waiting" | "serving" | "served" | "skipped";
+  status: "waiting" | "attending" | "attended" | "skipped";
+  priority: "regular" | "senior" | "pwd" | "emergency";
+  estimated_wait_minutes?: number;
   called_at?: string;
   served_at?: string;
   queue_date: string;
   patient?: Patient;
+  department_id?: number;
+  doctor_id?: number;
+  department?: Department;
+  doctor?: Doctor;
+  medical_record_id?: number;
+  medical_record?: MedicalRecord;
   created_at: string;
   updated_at: string;
 }
@@ -64,7 +102,7 @@ export interface PreRegistration {
   middle_name?: string;
   address: string;
   contact_number: string;
-  sex: "male" | "female";
+  sex: string;
   civil_status: string;
   spouse_name?: string;
   date_of_birth: string;
@@ -74,8 +112,13 @@ export interface PreRegistration {
   religion?: string;
   occupation?: string;
   reason_for_visit: string;
+  priority?: "regular" | "senior" | "pwd" | "emergency";
   philhealth_id?: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "no_show";
+  department_id?: number;
+  doctor_id?: number;
+  department?: Department;
+  doctor?: Doctor;
   approved_by?: number;
   approved_at?: string;
   approver?: User;
@@ -85,7 +128,7 @@ export interface PreRegistration {
 
 export interface QueueStatistics {
   total_patients_today: number;
-  now_serving?: Queue;
+  now_serving: Queue | undefined;
   served: number;
   skipped: number;
   waiting: number;
@@ -132,25 +175,18 @@ export interface DashboardStats {
 
 export interface PatientAnalytics {
   gender_distribution: Array<{ gender: string; count: number }>;
-  age_distribution: Array<{ age_group: string; count: number }>;
+  age_groups: Array<{ range: string; count: number }>;
   civil_status_distribution: Array<{ civil_status: string; count: number }>;
+  nationality_distribution: Array<{ nationality: string; count: number }>;
   registration_trends: Array<{ date: string; count: number }>;
+  top_reasons_for_visit: Array<{ reason: string; count: number }>;
 }
 
 export interface QueueAnalytics {
+  daily_trends: Array<{ date: string; count: number }>;
   status_distribution: Array<{ status: string; count: number }>;
-  daily_trends: Array<{
-    date: string;
-    total: number;
-    served: number;
-    skipped: number;
-  }>;
+  avg_wait_time: number;
   peak_hours: Array<{ hour: number; count: number }>;
-  waiting_time_stats: {
-    avg_wait_minutes: number;
-    min_wait_minutes: number;
-    max_wait_minutes: number;
-  } | null;
 }
 
 export interface MedicalRecordsAnalytics {
@@ -183,6 +219,23 @@ export interface PreRegistrationAnalytics {
     approved_pre_registrations: number;
     approval_rate: number;
   };
+}
+
+export interface QueueTransfer {
+  id: number;
+  queue_id: number;
+  from_doctor_id?: number;
+  to_doctor_id?: number;
+  from_department_id?: number;
+  to_department_id?: number;
+  reason?: string;
+  transferred_by?: number;
+  from_doctor?: Doctor;
+  to_doctor?: Doctor;
+  from_department?: Department;
+  to_department?: Department;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ExportData {

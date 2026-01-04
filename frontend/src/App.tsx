@@ -12,18 +12,24 @@ import Queue from "./pages/Queue";
 import MedicalRecords from "./pages/MedicalRecords";
 import Reports from "./pages/Reports";
 import PreListing from "./pages/PreListing";
-import QueueDisplay from "./pages/QueueDisplay";
+import PublicDisplay from "./pages/PublicDisplay";
+import DoctorManagement from "./pages/DoctorManagement";
+import UserManagement from "./pages/UserManagement";
+import DepartmentManagement from "./pages/DepartmentManagement";
+import SystemSettings from "./pages/SystemSettings";
+import AuditLogs from "./pages/AuditLogs";
+import SystemAnalytics from "./pages/SystemAnalytics";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/pre-register" element={<PreListing />} />
-          <Route path="/queue-display" element={<QueueDisplay />} />
+          <Route path="/public-display" element={<PublicDisplay />} />
           <Route
             path="/"
             element={
@@ -38,6 +44,12 @@ function App() {
             <Route path="queue" element={<Queue />} />
             <Route path="medical-records" element={<MedicalRecords />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="doctor-management" element={<DoctorManagement />} />
+            <Route path="user-management" element={<UserManagement />} />
+            <Route path="department-management" element={<DepartmentManagement />} />
+            <Route path="system-settings" element={<SystemSettings />} />
+            <Route path="audit-logs" element={<AuditLogs />} />
+            <Route path="system-analytics" element={<SystemAnalytics />} />
           </Route>
         </Routes>
       </Router>

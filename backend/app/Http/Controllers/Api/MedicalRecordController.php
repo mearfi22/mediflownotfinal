@@ -40,7 +40,7 @@ class MedicalRecordController extends Controller
             'treatment' => 'required|string',
             'notes' => 'nullable|string',
             'doctor_name' => 'required|string|max:255',
-            'pdf_file' => 'nullable|file|mimes:pdf|max:10240', // 10MB max
+            'pdf_file' => 'required|file|mimes:pdf|max:10240', // 10MB max - REQUIRED for new records
         ]);
 
         // Handle PDF file upload

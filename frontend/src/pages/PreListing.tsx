@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { preRegistrationApi } from "../services/api";
+import { preRegistrationApi, queueApi } from "../services/api";
+import { Department, Doctor } from "../types";
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -23,12 +24,18 @@ interface FormData {
   occupation?: string;
   reason_for_visit: string;
   philhealth_id?: string;
+  department_id?: number;
+  doctor_id?: number;
+  priority?: string;
 }
 
 const PreListing: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
 
   const {
     register,
@@ -38,6 +45,41 @@ const PreListing: React.FC = () => {
     setValue,
     formState: { errors },
   } = useForm<FormData>();
+
+  const watchedDepartmentId = watch("department_id");
+
+  // Load departments and doctors on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [departmentsRes, doctorsRes] = await Promise.all([
+          queueApi.getDepartments(),
+          queueApi.getDoctors(),
+        ]);
+        setDepartments(departmentsRes.data);
+        setDoctors(doctorsRes.data);
+        setFilteredDoctors(doctorsRes.data);
+      } catch (err) {
+        console.error("Error fetching departments/doctors:", err);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Filter doctors based on selected department
+  useEffect(() => {
+    if (watchedDepartmentId) {
+      const filtered = doctors.filter(
+        (doctor) => doctor.department_id === watchedDepartmentId
+      );
+      setFilteredDoctors(filtered);
+      // Reset doctor selection if it's not in the filtered list
+      setValue("doctor_id", undefined);
+    } else {
+      setFilteredDoctors(doctors);
+    }
+  }, [watchedDepartmentId, doctors, setValue]);
 
   const watchedDateOfBirth = watch("date_of_birth");
 
@@ -563,7 +605,84 @@ const PreListing: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Medical Information
             </h3>
-            <div>
+            <div className="space-y-4">
+              {/* Department Selection */}
+              <div>
+                <label
+                  htmlFor="department_id"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Department
+                </label>
+                <select
+                  id="department_id"
+                  {...register("department_id", {
+                    setValueAs: (value) =>
+                      value === "" || value === undefined ? undefined : Number(value),
+                  })}
+                  className="input"
+                >
+                  <option value="">Select Department (Optional)</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Doctor Selection */}
+              <div>
+                <label
+                  htmlFor="doctor_id"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Doctor
+                </label>
+                <select
+                  id="doctor_id"
+                  {...register("doctor_id", {
+                    setValueAs: (value) =>
+                      value === "" || value === undefined ? undefined : Number(value),
+                  })}
+                  className="input"
+                  disabled={!watchedDepartmentId}
+                >
+                  <option value="">Select Doctor (Optional)</option>
+                  {filteredDoctors.map((doctor) => (
+                    <option key={doctor.id} value={doctor.id}>
+                      {doctor.full_name}
+                    </option>
+                  ))}
+                </select>
+                {!watchedDepartmentId && (
+                  <p className="mt-1 text-sm text-gray-500">
+                    Please select a department first
+                  </p>
+                )}
+              </div>
+
+              {/* Priority Selection */}
+              <div>
+                <label
+                  htmlFor="priority"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Priority
+                </label>
+                <select
+                  id="priority"
+                  {...register("priority")}
+                  className="input"
+                  defaultValue="regular"
+                >
+                  <option value="regular">Regular</option>
+                  <option value="senior">Senior Citizen</option>
+                  <option value="pwd">PWD (Person with Disability)</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+              </div>
+
               {/* Reason for Visit */}
               <div>
                 <label

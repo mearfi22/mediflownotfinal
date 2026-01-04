@@ -14,9 +14,13 @@ class PatientController extends Controller
      */
     public function index(): JsonResponse
     {
-        $patients = Patient::with(['queueEntries' => function($query) {
-            $query->whereDate('queue_date', today());
-        }])->paginate(15);
+        $patients = Patient::with([
+            'department',
+            'doctor',
+            'queueEntries' => function($query) {
+                $query->whereDate('queue_date', today());
+            }
+        ])->withCount('medicalRecords')->paginate(15);
 
         return response()->json($patients);
     }
@@ -43,6 +47,9 @@ class PatientController extends Controller
             'contact_number' => 'required|string|max:20',
             'philhealth_id' => 'nullable|string|max:255',
             'reason_for_visit' => 'nullable|string',
+            'department_id' => 'nullable|exists:departments,id',
+            'doctor_id' => 'nullable|exists:doctors,id',
+            'priority' => 'nullable|in:regular,senior,pwd,emergency',
         ]);
 
         $patient = Patient::create($validated);
@@ -55,7 +62,7 @@ class PatientController extends Controller
      */
     public function show(Patient $patient): JsonResponse
     {
-        $patient->load(['medicalRecords', 'queueEntries']);
+        $patient->load(['medicalRecords', 'queueEntries', 'department', 'doctor']);
         return response()->json($patient);
     }
 
@@ -81,6 +88,9 @@ class PatientController extends Controller
             'contact_number' => 'sometimes|required|string|max:20',
             'philhealth_id' => 'nullable|string|max:255',
             'reason_for_visit' => 'nullable|string',
+            'department_id' => 'nullable|exists:departments,id',
+            'doctor_id' => 'nullable|exists:doctors,id',
+            'priority' => 'nullable|in:regular,senior,pwd,emergency',
             'status' => 'sometimes|in:active,inactive',
         ]);
 

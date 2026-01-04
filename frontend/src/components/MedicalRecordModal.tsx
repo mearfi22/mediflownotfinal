@@ -6,8 +6,9 @@ import {
   DocumentArrowUpIcon,
   DocumentIcon,
 } from "@heroicons/react/24/outline";
-import { MedicalRecord, Patient } from "../types";
+import { MedicalRecord, Patient, Doctor } from "../types";
 import MedicalRecordPrint from "./MedicalRecordPrint";
+import { doctorsApi } from "../services/api";
 
 interface MedicalRecordModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface MedicalRecordModalProps {
   record?: MedicalRecord | null;
   patients: Patient[];
   isViewMode?: boolean;
+  existingRecords?: MedicalRecord[]; // Add this to track existing records
 }
 
 interface FormData {
@@ -35,20 +37,41 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
   record,
   patients,
   isViewMode = false,
+  existingRecords = [],
 }) => {
   const [loading, setLoading] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+
+  // All patients are available for medical records (multiple records per patient allowed)
+  const availablePatients = patients;
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<FormData>();
 
+  const watchedPatientId = watch("patient_id");
+
   useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const response = await doctorsApi.getAll();
+        const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+        setDoctors(data);
+      } catch (error) {
+        console.error("Error fetching doctors:", error);
+        setDoctors([]);
+      }
+    };
+
     if (isOpen) {
+      fetchDoctors();
       setSelectedFile(null); // Reset file selection
       if (record) {
         reset({
@@ -71,8 +94,27 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
     }
   }, [isOpen, record, reset]);
 
+  // Auto-populate doctor based on selected patient
+  useEffect(() => {
+    if (watchedPatientId && !record && doctors.length > 0) {
+      const selectedPatient = patients.find(p => p.id === Number(watchedPatientId));
+      if (selectedPatient?.doctor_id) {
+        const patientDoctor = doctors.find(d => d.id === selectedPatient.doctor_id);
+        if (patientDoctor) {
+          setValue("doctor_name", patientDoctor.full_name);
+        }
+      }
+    }
+  }, [watchedPatientId, patients, doctors, record, setValue]);
+
   const onSubmit = async (data: FormData) => {
     if (isViewMode) return;
+
+    // Validate PDF file for new records
+    if (!selectedFile) {
+      alert('Please upload a PDF file for the medical record.');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -91,11 +133,8 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
         formData.append("pdf_file", selectedFile);
       }
 
-      // Add _method for PUT requests when updating
-      if (record) {
-        formData.append("_method", "PUT");
-      }
-
+      // Always create new record (even when editing - it creates a new visit entry)
+      // This builds medical history instead of overwriting
       await onSave(formData as any);
       setSelectedFile(null);
       onClose();
@@ -380,10 +419,10 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
                         valueAsNumber: true,
                       })}
                       className="input"
-                      disabled={isViewMode}
+                      disabled={isViewMode || !!record}
                     >
                       <option value="">Select a patient</option>
-                      {patients.map((patient) => (
+                      {availablePatients.map((patient) => (
                         <option key={patient.id} value={patient.id}>
                           {patient.full_name}
                         </option>
@@ -420,24 +459,38 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
                     )}
                   </div>
 
-                  {/* Doctor Name */}
+                  {/* Doctor Selection */}
                   <div>
                     <label
                       htmlFor="doctor_name"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Doctor Name *
+                      Doctor *
                     </label>
-                    <input
-                      id="doctor_name"
-                      type="text"
-                      placeholder="Enter doctor's name"
-                      {...register("doctor_name", {
-                        required: "Doctor name is required",
-                      })}
-                      className="input"
-                      readOnly={isViewMode}
-                    />
+                    {isViewMode ? (
+                      <input
+                        id="doctor_name"
+                        type="text"
+                        value={record?.doctor_name || ""}
+                        className="input"
+                        readOnly
+                      />
+                    ) : (
+                      <select
+                        id="doctor_name"
+                        {...register("doctor_name", {
+                          required: "Doctor selection is required",
+                        })}
+                        className="input"
+                      >
+                        <option value="">Select a doctor</option>
+                        {doctors.map((doctor) => (
+                          <option key={doctor.id} value={doctor.full_name}>
+                            {doctor.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     {errors.doctor_name && (
                       <p className="mt-1 text-sm text-red-600">
                         {errors.doctor_name.message}
@@ -519,8 +572,13 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
                       htmlFor="pdf_file"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Medical Record PDF (Optional)
+                      Medical Record PDF {record ? '(Upload new file to replace existing)' : '*'}
                     </label>
+                    {record && record.pdf_file_path && (
+                      <p className="text-xs text-gray-500 mb-2">
+                        Current file: {record.pdf_file_path.split('/').pop()}
+                      </p>
+                    )}
                     <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
                       <div className="space-y-1 text-center">
                         <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -549,6 +607,11 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
                         {selectedFile && (
                           <div className="mt-2 text-sm text-green-600">
                             Selected: {selectedFile.name}
+                          </div>
+                        )}
+                        {!record && !selectedFile && (
+                          <div className="mt-2 text-sm text-red-600">
+                            PDF file is required for medical records
                           </div>
                         )}
                       </div>

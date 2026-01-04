@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { patientsApi, queueApi } from "../services/api";
+import { Patient, Doctor } from "../types";
+import PatientModal from "../components/PatientModal";
+import PatientMedicalHistory from "../components/PatientMedicalHistory";
 import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon,
   MagnifyingGlassIcon,
+  EyeIcon,
   FunnelIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
-import { patientApi } from "../services/api";
-import { Patient } from "../types";
-import PatientModal from "../components/PatientModal";
 
 const Patients: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -20,23 +22,41 @@ const Patients: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [viewingPatient, setViewingPatient] = useState<Patient | null>(null);
+  const [medicalHistoryPatient, setMedicalHistoryPatient] = useState<Patient | null>(null);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [genderFilter, setGenderFilter] = useState("");
   const [ageRangeFilter, setAgeRangeFilter] = useState("");
+  const [doctorFilter, setDoctorFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchPatients();
+    fetchDoctors();
   }, [currentPage]);
+
+  const fetchDoctors = async () => {
+    try {
+      const response = await queueApi.getDoctors();
+      setDoctors(response.data);
+    } catch (err) {
+      console.error("Error fetching doctors:", err);
+    }
+  };
 
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      const response = await patientApi.getAll(currentPage);
-      setPatients(response.data);
-      setTotalPages(response.last_page);
+      const response = await patientsApi.getAll();
+      // Handle both array and paginated responses
+      const patientsData = Array.isArray(response.data) 
+        ? response.data 
+        : response.data.data || [];
+      setPatients(patientsData);
+      // Since there's no pagination, we'll set totalPages to 1
+      setTotalPages(1);
       setError("");
     } catch (err: any) {
       setError("Failed to load patients");
@@ -64,7 +84,7 @@ const Patients: React.FC = () => {
     if (!confirm("Are you sure you want to delete this patient?")) return;
 
     try {
-      await patientApi.delete(patientId);
+      await patientsApi.delete(patientId);
       fetchPatients();
     } catch (err: any) {
       alert("Failed to delete patient");
@@ -77,12 +97,13 @@ const Patients: React.FC = () => {
     fetchPatients();
   };
 
-  const calculateAge = (dateOfBirth: string) => {
-    return new Date().getFullYear() - new Date(dateOfBirth).getFullYear();
-  };
-
   // Filter and search logic
   const filteredPatients = useMemo(() => {
+    // Ensure patients is an array
+    if (!Array.isArray(patients)) {
+      return [];
+    }
+    
     // Sort patients by creation date (most recent first)
     const sortedPatients = [...patients].sort(
       (a, b) =>
@@ -134,6 +155,7 @@ const Patients: React.FC = () => {
     setSearchTerm("");
     setGenderFilter("");
     setAgeRangeFilter("");
+    setDoctorFilter("");
   };
 
   if (loading) {
@@ -190,12 +212,12 @@ const Patients: React.FC = () => {
               >
                 <FunnelIcon className="w-4 h-4 mr-2" />
                 Filters
-                {(genderFilter || ageRangeFilter) && (
+                {(genderFilter || ageRangeFilter || doctorFilter) && (
                   <span className="ml-2 bg-red-500 text-white text-xs rounded-full h-2 w-2"></span>
                 )}
               </button>
 
-              {(searchTerm || genderFilter || ageRangeFilter) && (
+              {(searchTerm || genderFilter || ageRangeFilter || doctorFilter) && (
                 <button
                   onClick={clearFilters}
                   className="btn btn-secondary text-sm whitespace-nowrap"
@@ -208,7 +230,7 @@ const Patients: React.FC = () => {
 
           {/* Filter Options */}
           {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
               {/* Gender Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -243,6 +265,25 @@ const Patients: React.FC = () => {
                   <option value="60+">60+ years</option>
                 </select>
               </div>
+
+              {/* Doctor Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Doctor
+                </label>
+                <select
+                  value={doctorFilter}
+                  onChange={(e) => setDoctorFilter(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">All Doctors</option>
+                  {doctors.map((doctor) => (
+                    <option key={doctor.id} value={doctor.id}>
+                      {doctor.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
@@ -250,7 +291,7 @@ const Patients: React.FC = () => {
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span>
               Showing {filteredPatients.length} of {patients.length} patients
-              {(searchTerm || genderFilter || ageRangeFilter) && " (filtered)"}
+              {(searchTerm || genderFilter || ageRangeFilter || doctorFilter) && " (filtered)"}
             </span>
           </div>
         </div>
@@ -298,6 +339,12 @@ const Patients: React.FC = () => {
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-primary text-white">
+                            {patient.patient_uid ? patient.patient_uid.substring(0, 8).toUpperCase() : 'N/A'}
+                          </span>
+                          <span className="text-xs text-gray-500">#{patient.id}</span>
+                        </div>
                         <h3 className="text-lg font-semibold text-gray-900">
                           {patient.full_name}
                         </h3>
@@ -306,6 +353,18 @@ const Patients: React.FC = () => {
                         </p>
                       </div>
                       <div className="flex space-x-2 ml-4">
+                        <button
+                          onClick={() => setMedicalHistoryPatient(patient)}
+                          className="p-3 text-green-600 hover:text-green-900 hover:bg-white rounded-full min-h-[44px] min-w-[44px] touch-manipulation flex items-center justify-center relative"
+                          title="Medical History"
+                        >
+                          <DocumentTextIcon className="w-5 h-5" />
+                          {patient.medical_records_count > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                              {patient.medical_records_count}
+                            </span>
+                          )}
+                        </button>
                         <button
                           onClick={() => handleViewPatient(patient)}
                           className="p-3 text-primary hover:text-primary-dark hover:bg-white rounded-full min-h-[44px] min-w-[44px] touch-manipulation flex items-center justify-center"
@@ -340,6 +399,18 @@ const Patients: React.FC = () => {
                         <span className="text-gray-500">Contact:</span>
                         <p className="font-medium">{patient.contact_number}</p>
                       </div>
+                      {patient.department && (
+                        <div>
+                          <span className="text-gray-500">Department:</span>
+                          <p className="font-medium">{patient.department.name}</p>
+                        </div>
+                      )}
+                      {patient.doctor && (
+                        <div>
+                          <span className="text-gray-500">Doctor:</span>
+                          <p className="font-medium">{patient.doctor.full_name}</p>
+                        </div>
+                      )}
                     </div>
                     {patient.reason_for_visit && (
                       <div className="mt-3">
@@ -360,6 +431,9 @@ const Patients: React.FC = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Patient ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -367,6 +441,9 @@ const Patients: React.FC = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Contact
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Department
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Reason
@@ -379,6 +456,14 @@ const Patients: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredPatients.map((patient) => (
                     <tr key={patient.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-mono font-semibold text-primary">
+                          {patient.patient_uid ? patient.patient_uid.substring(0, 8).toUpperCase() : 'N/A'}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          #{patient.id}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
@@ -399,6 +484,16 @@ const Patients: React.FC = () => {
                           {patient.contact_number}
                         </div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {patient.department?.name || "N/A"}
+                        </div>
+                        {patient.doctor && (
+                          <div className="text-xs text-gray-500">
+                            {patient.doctor.full_name}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 max-w-xs truncate">
                           {patient.reason_for_visit || "N/A"}
@@ -406,6 +501,18 @@ const Patients: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex space-x-2">
+                          <button
+                            onClick={() => setMedicalHistoryPatient(patient)}
+                            className="text-green-600 hover:text-green-900 relative"
+                            title="Medical History"
+                          >
+                            <DocumentTextIcon className="w-4 h-4" />
+                            {patient.medical_records_count > 0 && (
+                              <span className="absolute -top-2 -right-2 bg-green-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px]">
+                                {patient.medical_records_count}
+                              </span>
+                            )}
+                          </button>
                           <button
                             onClick={() => handleViewPatient(patient)}
                             className="text-primary hover:text-primary-dark"
@@ -592,6 +699,34 @@ const Patients: React.FC = () => {
                       {viewingPatient.status}
                     </span>
                   </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">
+                      Priority
+                    </p>
+                    <p className="text-sm text-gray-900 capitalize">
+                      {viewingPatient.priority === "pwd" ? "PWD" : viewingPatient.priority || "Regular"}
+                    </p>
+                  </div>
+                  {viewingPatient.department && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">
+                        Department
+                      </p>
+                      <p className="text-sm text-gray-900">
+                        {viewingPatient.department.name}
+                      </p>
+                    </div>
+                  )}
+                  {viewingPatient.doctor && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">
+                        Doctor
+                      </p>
+                      <p className="text-sm text-gray-900">
+                        {viewingPatient.doctor.full_name}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -617,6 +752,14 @@ const Patients: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Medical History Modal */}
+      {medicalHistoryPatient && (
+        <PatientMedicalHistory
+          patient={medicalHistoryPatient}
+          onClose={() => setMedicalHistoryPatient(null)}
+        />
       )}
     </div>
   );

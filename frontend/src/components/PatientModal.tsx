@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { patientApi } from "../services/api";
-import { Patient } from "../types";
+import { patientsApi, queueApi } from "../services/api";
+import { Patient, Department, Doctor } from "../types";
 
 interface PatientModalProps {
   patient?: Patient | null;
@@ -25,11 +25,17 @@ interface PatientFormData {
   contact_number: string;
   philhealth_id?: string;
   reason_for_visit: string;
+  department_id?: number;
+  doctor_id?: number;
+  priority?: string;
 }
 
 const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
 
   const {
     register,
@@ -43,7 +49,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           last_name: patient.last_name,
           first_name: patient.first_name,
           middle_name: patient.middle_name || "",
-          date_of_birth: patient.date_of_birth,
+          date_of_birth: patient.date_of_birth.split('T')[0], // Ensure YYYY-MM-DD format
           age: patient.age,
           sex: patient.gender === "other" ? "male" : patient.gender,
           birthplace: patient.birthplace,
@@ -56,11 +62,63 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           contact_number: patient.contact_number,
           philhealth_id: patient.philhealth_id || "",
           reason_for_visit: patient.reason_for_visit || "",
+          department_id: patient.department_id || undefined,
+          doctor_id: patient.doctor_id || undefined,
+          priority: patient.priority || "regular",
         }
-      : {},
+      : { priority: "regular" },
   });
 
   const watchedDateOfBirth = watch("date_of_birth");
+  const watchedDepartmentId = watch("department_id");
+
+  // Load departments and doctors on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [departmentsRes, doctorsRes] = await Promise.all([
+          queueApi.getDepartments(),
+          queueApi.getDoctors(),
+        ]);
+        setDepartments(departmentsRes.data);
+        setDoctors(doctorsRes.data);
+        
+        // If editing a patient with a department, filter doctors immediately
+        if (patient?.department_id) {
+          const filtered = doctorsRes.data.filter(
+            (doctor: any) => doctor.department_id === patient.department_id
+          );
+          setFilteredDoctors(filtered);
+        } else {
+          setFilteredDoctors(doctorsRes.data);
+        }
+      } catch (err) {
+        console.error("Error fetching departments/doctors:", err);
+      }
+    };
+
+    fetchData();
+  }, [patient]);
+
+  // Filter doctors based on selected department
+  useEffect(() => {
+    if (watchedDepartmentId) {
+      const filtered = doctors.filter(
+        (doctor) => doctor.department_id === watchedDepartmentId
+      );
+      setFilteredDoctors(filtered);
+      // Only reset doctor selection if the current doctor is not in the filtered list
+      const currentDoctorId = watch("doctor_id");
+      if (currentDoctorId) {
+        const doctorInList = filtered.find(d => d.id === currentDoctorId);
+        if (!doctorInList) {
+          setValue("doctor_id", undefined);
+        }
+      }
+    } else {
+      setFilteredDoctors(doctors);
+    }
+  }, [watchedDepartmentId, doctors, setValue, watch]);
 
   // Calculate age automatically when date of birth changes
   useEffect(() => {
@@ -99,9 +157,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
       delete apiData.sex;
 
       if (patient) {
-        await patientApi.update(patient.id, apiData);
+        await patientsApi.update(patient.id, apiData);
       } else {
-        await patientApi.create(apiData);
+        await patientsApi.create(apiData);
       }
       onClose();
     } catch (err: any) {
@@ -564,7 +622,83 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
               <h4 className="text-md font-semibold text-gray-900 mb-4">
                 Medical Information
               </h4>
-              <div>
+              <div className="space-y-4">
+                {/* Department Selection */}
+                <div>
+                  <label
+                    htmlFor="department_id"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Department
+                  </label>
+                  <select
+                    id="department_id"
+                    className="input"
+                    {...register("department_id", {
+                      setValueAs: (value) =>
+                        value === "" || value === undefined ? undefined : Number(value),
+                    })}
+                  >
+                    <option value="">Select Department (Optional)</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Doctor Selection */}
+                <div>
+                  <label
+                    htmlFor="doctor_id"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Doctor
+                  </label>
+                  <select
+                    id="doctor_id"
+                    className="input"
+                    disabled={!watchedDepartmentId}
+                    {...register("doctor_id", {
+                      setValueAs: (value) =>
+                        value === "" || value === undefined ? undefined : Number(value),
+                    })}
+                  >
+                    <option value="">Select Doctor (Optional)</option>
+                    {filteredDoctors.map((doctor) => (
+                      <option key={doctor.id} value={doctor.id}>
+                        {doctor.full_name}
+                      </option>
+                    ))}
+                  </select>
+                  {!watchedDepartmentId && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      Please select a department first
+                    </p>
+                  )}
+                </div>
+
+                {/* Priority Selection */}
+                <div>
+                  <label
+                    htmlFor="priority"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Priority
+                  </label>
+                  <select
+                    id="priority"
+                    className="input"
+                    {...register("priority")}
+                  >
+                    <option value="regular">Regular</option>
+                    <option value="senior">Senior Citizen</option>
+                    <option value="pwd">PWD (Person with Disability)</option>
+                    <option value="emergency">Emergency</option>
+                  </select>
+                </div>
+
                 {/* Reason for Visit */}
                 <div>
                   <label

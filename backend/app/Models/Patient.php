@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class Patient extends Model
 {
@@ -24,7 +26,11 @@ class Patient extends Model
         'contact_number',
         'philhealth_id',
         'reason_for_visit',
-        'status'
+        'department_id',
+        'doctor_id',
+        'priority',
+        'status',
+        'patient_uid'
     ];
 
     protected $casts = [
@@ -35,6 +41,18 @@ class Patient extends Model
         'full_name'
     ];
 
+    // Generate a unique patient UID before creating
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($patient) {
+            if (empty($patient->patient_uid)) {
+                $patient->patient_uid = (string) Str::uuid();
+            }
+        });
+    }
+
     public function medicalRecords(): HasMany
     {
         return $this->hasMany(MedicalRecord::class);
@@ -43,6 +61,16 @@ class Patient extends Model
     public function queueEntries(): HasMany
     {
         return $this->hasMany(Queue::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class);
     }
 
     public function getFullNameAttribute()

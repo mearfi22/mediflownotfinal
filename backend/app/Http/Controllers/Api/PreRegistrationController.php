@@ -18,7 +18,7 @@ class PreRegistrationController extends Controller
      */
     public function index(): JsonResponse
     {
-        $preRegistrations = PreRegistration::with('approver')
+        $preRegistrations = PreRegistration::with(['approver', 'department', 'doctor'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
@@ -46,7 +46,10 @@ class PreRegistrationController extends Controller
             'religion' => 'nullable|string|max:100',
             'occupation' => 'nullable|string|max:255',
             'reason_for_visit' => 'required|string',
+            'priority' => 'nullable|in:regular,senior,pwd,emergency',
             'philhealth_id' => 'nullable|string|max:255',
+            'department_id' => 'nullable|exists:departments,id',
+            'doctor_id' => 'nullable|exists:doctors,id',
         ]);
 
         $preRegistration = PreRegistration::create($validated);
@@ -62,7 +65,7 @@ class PreRegistrationController extends Controller
      */
     public function show(PreRegistration $preRegistration): JsonResponse
     {
-        $preRegistration->load('approver');
+        $preRegistration->load(['approver', 'department', 'doctor']);
         return response()->json($preRegistration);
     }
 
@@ -88,6 +91,8 @@ class PreRegistrationController extends Controller
             'occupation' => 'nullable|string|max:255',
             'reason_for_visit' => 'sometimes|required|string',
             'philhealth_id' => 'nullable|string|max:255',
+            'department_id' => 'nullable|exists:departments,id',
+            'doctor_id' => 'nullable|exists:doctors,id',
         ]);
 
         $preRegistration->update($validated);
@@ -124,6 +129,8 @@ class PreRegistrationController extends Controller
             'patient_id' => $patient->id,
             'reason_for_visit' => $preRegistration->reason_for_visit,
             'queue_date' => Carbon::today(),
+            'department_id' => $preRegistration->department_id,
+            'doctor_id' => $preRegistration->doctor_id,
         ]);
 
         // Update pre-registration status
@@ -136,7 +143,7 @@ class PreRegistrationController extends Controller
         return response()->json([
             'message' => 'Pre-registration approved successfully',
             'patient' => $patient,
-            'queue' => $queue->load('patient'),
+            'queue' => $queue->load(['patient', 'department', 'doctor']),
         ]);
     }
 

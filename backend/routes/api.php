@@ -8,6 +8,12 @@ use App\Http\Controllers\Api\MedicalRecordController;
 use App\Http\Controllers\Api\QueueController;
 use App\Http\Controllers\Api\PreRegistrationController;
 use App\Http\Controllers\Api\ReportsController;
+use App\Http\Controllers\Api\DoctorController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\DepartmentController;
+use App\Http\Controllers\Api\SystemSettingController;
+use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\SystemAnalyticsController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -16,6 +22,11 @@ Route::post('/pre-registrations', [PreRegistrationController::class, 'store']);
 
 // Queue display (public)
 Route::get('/queue/display', [QueueController::class, 'display']);
+
+// Public dropdown data
+Route::get('/departments', [DepartmentController::class, 'index']);
+Route::get('/departments/{department}', [DepartmentController::class, 'show']);
+Route::get('/doctors', [QueueController::class, 'getDoctors']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -34,11 +45,40 @@ Route::middleware('auth:sanctum')->group(function () {
     // Queue
     Route::apiResource('queue', QueueController::class);
     Route::get('/queue-statistics', [QueueController::class, 'statistics']);
+    Route::post('/queue/{queue}/transfer', [QueueController::class, 'transfer']);
+    Route::get('/queue/{queue}/transfer-history', [QueueController::class, 'transferHistory']);
+
+    // Individual doctor routes (protected)
+    Route::post('/doctors', [DoctorController::class, 'store']);
+    Route::get('/doctors/{doctor}', [DoctorController::class, 'show']);
+    Route::put('/doctors/{doctor}', [DoctorController::class, 'update']);
+    Route::delete('/doctors/{doctor}', [DoctorController::class, 'destroy']);
+    Route::get('/departments-list', [DoctorController::class, 'getDepartments']);
 
     // Pre-registrations (staff/admin only)
     Route::apiResource('pre-registrations', PreRegistrationController::class)->except(['store']);
     Route::post('/pre-registrations/{preRegistration}/approve', [PreRegistrationController::class, 'approve']);
     Route::post('/pre-registrations/{preRegistration}/reject', [PreRegistrationController::class, 'reject']);
+
+    // User Management (Admin only)
+    Route::apiResource('users', UserController::class);
+    Route::get('/staff-list', [UserController::class, 'getStaff']);
+    Route::get('/doctor-users', [UserController::class, 'getDoctorUsers']);
+    Route::post('/users/{user}/toggle-status', [UserController::class, 'toggleStatus']);
+
+    // Department Management (Admin only)
+    Route::apiResource('departments', DepartmentController::class)->except(['index', 'show']);
+
+    // System Settings (Admin only)
+    Route::get('/system-settings', [SystemSettingController::class, 'index']);
+    Route::put('/system-settings', [SystemSettingController::class, 'update']);
+
+    // Audit Logs (Admin only)
+    Route::get('/audit-logs', [AuditLogController::class, 'index']);
+    Route::get('/audit-logs/statistics', [AuditLogController::class, 'statistics']);
+
+    // System Analytics (Admin only)
+    Route::get('/system-analytics/dashboard', [SystemAnalyticsController::class, 'dashboard']);
 
     // Reports
     Route::get('/reports/dashboard', [ReportsController::class, 'dashboard']);

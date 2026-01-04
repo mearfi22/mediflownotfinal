@@ -11,6 +11,12 @@ import {
   UserIcon,
   Bars3Icon,
   XMarkIcon,
+  UserGroupIcon,
+  UserCircleIcon,
+  BuildingOfficeIcon,
+  Cog6ToothIcon,
+  DocumentMagnifyingGlassIcon,
+  PresentationChartLineIcon,
 } from "@heroicons/react/24/outline";
 
 const Layout: React.FC = () => {
@@ -27,6 +33,14 @@ const Layout: React.FC = () => {
       icon: DocumentTextIcon,
     },
     { name: "Reports", href: "/reports", icon: ChartBarIcon },
+    { name: "Doctor Management", href: "/doctor-management", icon: UserGroupIcon },
+    ...(user?.role === "admin" ? [
+      { name: "User Management", href: "/user-management", icon: UserCircleIcon },
+      { name: "Department Management", href: "/department-management", icon: BuildingOfficeIcon },
+      { name: "System Settings", href: "/system-settings", icon: Cog6ToothIcon },
+      { name: "Audit Logs", href: "/audit-logs", icon: DocumentMagnifyingGlassIcon },
+      { name: "System Analytics", href: "/system-analytics", icon: PresentationChartLineIcon },
+    ] : []),
   ];
 
   return (

@@ -1,0 +1,971 @@
+import React, { useState, useEffect } from "react";
+import { reportsApi } from "../services/api";
+import {
+  DashboardStats,
+  PatientAnalytics,
+  QueueAnalytics,
+  MedicalRecordsAnalytics,
+  PreRegistrationAnalytics,
+} from "../types";
+import {
+  ChartBarIcon,
+  UsersIcon,
+  ClipboardDocumentListIcon,
+  QueueListIcon,
+  DocumentTextIcon,
+  ArrowDownTrayIcon,
+  CalendarIcon,
+} from "@heroicons/react/24/outline";
+
+const Reports: React.FC = () => {
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
+    null
+  );
+  const [patientAnalytics, setPatientAnalytics] =
+    useState<PatientAnalytics | null>(null);
+  const [queueAnalytics, setQueueAnalytics] = useState<QueueAnalytics | null>(
+    null
+  );
+  const [medicalRecordsAnalytics, setMedicalRecordsAnalytics] =
+    useState<MedicalRecordsAnalytics | null>(null);
+  const [preRegistrationAnalytics, setPreRegistrationAnalytics] =
+    useState<PreRegistrationAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState(
+    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+  );
+  const [endDate, setEndDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  useEffect(() => {
+    fetchAllReports();
+  }, [startDate, endDate]);
+
+  const fetchAllReports = async () => {
+    try {
+      setLoading(true);
+      const [dashboard, patients, queue, medicalRecords, preRegistration] = await Promise.all([
+        reportsApi.getDashboard(startDate, endDate),
+        reportsApi.getPatientAnalytics(startDate, endDate),
+        reportsApi.getQueueAnalytics(startDate, endDate),
+        reportsApi.getMedicalRecordsAnalytics(startDate, endDate),
+        reportsApi.getPreRegistrationAnalytics(startDate, endDate),
+      ]);
+
+      setDashboardStats(dashboard.data);
+      setPatientAnalytics(patients.data);
+      setQueueAnalytics(queue.data);
+      setMedicalRecordsAnalytics(medicalRecords.data);
+      setPreRegistrationAnalytics(preRegistration.data);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExport = async (
+    type: "patients" | "medical_records" | "queue"
+  ) => {
+    try {
+      const response = await reportsApi.exportData(type, startDate, endDate);
+      const exportData = response.data;
+
+      // Convert data to CSV
+      const csvContent = convertToCSV(exportData.data);
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${exportData.filename}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      alert("Failed to export data. Please try again.");
+    }
+  };
+
+  const convertToCSV = (data: any[]): string => {
+    if (!data.length) return "";
+
+    // Extract headers
+    const headers = Object.keys(data[0]);
+    const csvHeaders = headers.join(",");
+
+    // Convert data rows
+    const csvRows = data.map((row) =>
+      headers
+        .map((header) => {
+          const value = row[header];
+          // Handle values that might contain commas or quotes
+          if (
+            typeof value === "string" &&
+            (value.includes(",") || value.includes('"'))
+          ) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        })
+        .join(",")
+    );
+
+    return [csvHeaders, ...csvRows].join("\n");
+  };
+
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat().format(num);
+  };
+
+  const calculatePercentage = (value: number, total: number) => {
+    return total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <span className="ml-3 text-lg">Loading reports...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Reports & Analytics
+          </h1>
+          <p className="text-gray-600">
+            Comprehensive insights and statistics for hospital operations
+          </p>
+        </div>
+
+        {/* Date Range Filter */}
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <CalendarIcon className="h-5 w-5 text-gray-400" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="input"
+            />
+          </div>
+          <span className="text-gray-500">to</span>
+          <div className="flex items-center space-x-2">
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="input"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab("dashboard")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "dashboard"
+                ? "border-primary text-primary"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <ChartBarIcon className="h-5 w-5 inline-block mr-2" />
+            Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab("patients")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "patients"
+                ? "border-primary text-primary"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <UsersIcon className="h-5 w-5 inline-block mr-2" />
+            Patients
+          </button>
+          <button
+            onClick={() => setActiveTab("queue")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "queue"
+                ? "border-primary text-primary"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <QueueListIcon className="h-5 w-5 inline-block mr-2" />
+            Queue
+          </button>
+          <button
+            onClick={() => setActiveTab("medical-records")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "medical-records"
+                ? "border-primary text-primary"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <ClipboardDocumentListIcon className="h-5 w-5 inline-block mr-2" />
+            Medical Records
+          </button>
+          <button
+            onClick={() => setActiveTab("pre-registration")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "pre-registration"
+                ? "border-primary text-primary"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <DocumentTextIcon className="h-5 w-5 inline-block mr-2" />
+            Pre-Registration
+          </button>
+        </nav>
+      </div>
+
+      {/* Dashboard Tab */}
+      {activeTab === "dashboard" && dashboardStats && (
+        <div className="space-y-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="card">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <UsersIcon className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500">
+                    Total Patients
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatNumber(dashboardStats.total_patients)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ClipboardDocumentListIcon className="h-8 w-8 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500">
+                    Medical Records
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatNumber(dashboardStats.total_medical_records)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <QueueListIcon className="h-8 w-8 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500">
+                    Queue Entries
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatNumber(dashboardStats.total_queue_entries)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <DocumentTextIcon className="h-8 w-8 text-orange-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500">
+                    Pending Pre-Reg
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatNumber(dashboardStats.pending_pre_registrations)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Period Statistics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Period Statistics
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">New Patients</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-lg">
+                      {formatNumber(dashboardStats.period_stats.new_patients)}
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      Avg: {(dashboardStats.period_stats.new_patients / 30).toFixed(1)}/day
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Medical Records</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-lg">
+                      {formatNumber(dashboardStats.period_stats.medical_records)}
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      Avg: {(dashboardStats.period_stats.medical_records / 30).toFixed(1)}/day
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Queue Entries</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-lg">
+                      {formatNumber(dashboardStats.period_stats.queue_entries)}
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      Avg: {(dashboardStats.period_stats.queue_entries / 30).toFixed(1)}/day
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Approved Pre-Regs</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-lg">
+                      {formatNumber(
+                        dashboardStats.period_stats.approved_pre_registrations
+                      )}
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      Approval Rate: {dashboardStats.pending_pre_registrations > 0 
+                        ? ((dashboardStats.period_stats.approved_pre_registrations / 
+                           (dashboardStats.pending_pre_registrations + dashboardStats.period_stats.approved_pre_registrations)) * 100).toFixed(1)
+                        : '100'}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Today's Queue Status
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Currently Attending</span>
+                  <span className="font-semibold text-lg text-blue-600">
+                    {dashboardStats.today_stats.queue_serving}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Waiting</span>
+                  <span className="font-semibold text-lg text-yellow-600">
+                    {formatNumber(dashboardStats.today_stats.queue_waiting)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Attended</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-lg text-green-600">
+                      {formatNumber(dashboardStats.today_stats.queue_served)}
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      {dashboardStats.today_stats.queue_served + dashboardStats.today_stats.queue_waiting > 0
+                        ? ((dashboardStats.today_stats.queue_served / 
+                           (dashboardStats.today_stats.queue_served + dashboardStats.today_stats.queue_waiting)) * 100).toFixed(1)
+                        : '0'}% completion
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Skipped</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-lg text-red-600">
+                      {formatNumber(dashboardStats.today_stats.queue_skipped)}
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      {dashboardStats.today_stats.queue_served + dashboardStats.today_stats.queue_skipped > 0
+                        ? ((dashboardStats.today_stats.queue_skipped / 
+                           (dashboardStats.today_stats.queue_served + dashboardStats.today_stats.queue_skipped)) * 100).toFixed(1)
+                        : '0'}% skip rate
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="card bg-gradient-to-br from-blue-50 to-blue-100">
+              <div className="text-center">
+                <p className="text-sm font-medium text-blue-800 mb-2">
+                  Total Patients Growth
+                </p>
+                <p className="text-3xl font-bold text-blue-900">
+                  {dashboardStats.total_patients > 0
+                    ? ((dashboardStats.period_stats.new_patients / dashboardStats.total_patients) * 100).toFixed(1)
+                    : '0'}%
+                </p>
+                <p className="text-xs text-blue-700 mt-1">This period vs total</p>
+              </div>
+            </div>
+
+            <div className="card bg-gradient-to-br from-green-50 to-green-100">
+              <div className="text-center">
+                <p className="text-sm font-medium text-green-800 mb-2">
+                  Queue Efficiency
+                </p>
+                <p className="text-3xl font-bold text-green-900">
+                  {dashboardStats.today_stats.queue_served + dashboardStats.today_stats.queue_waiting > 0
+                    ? ((dashboardStats.today_stats.queue_served / 
+                       (dashboardStats.today_stats.queue_served + dashboardStats.today_stats.queue_waiting + dashboardStats.today_stats.queue_skipped)) * 100).toFixed(1)
+                    : '0'}%
+                </p>
+                <p className="text-xs text-green-700 mt-1">Attended vs Total today</p>
+              </div>
+            </div>
+
+            <div className="card bg-gradient-to-br from-purple-50 to-purple-100">
+              <div className="text-center">
+                <p className="text-sm font-medium text-purple-800 mb-2">
+                  Records per Patient
+                </p>
+                <p className="text-3xl font-bold text-purple-900">
+                  {dashboardStats.total_patients > 0
+                    ? (dashboardStats.total_medical_records / dashboardStats.total_patients).toFixed(1)
+                    : '0'}
+                </p>
+                <p className="text-xs text-purple-700 mt-1">Average visits</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Patients Tab */}
+      {activeTab === "patients" && patientAnalytics && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Patient Analytics
+            </h2>
+            <button
+              onClick={() => handleExport("patients")}
+              className="btn-primary flex items-center space-x-2"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5" />
+              <span>Export CSV</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Gender Distribution */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Gender Distribution
+              </h3>
+              <div className="space-y-3">
+                {patientAnalytics.gender_distribution?.map((item) => (
+                  <div
+                    key={item.gender}
+                    className="flex justify-between items-center"
+                  >
+                    <span className="text-gray-600 capitalize">{item.gender}</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{
+                            width: `${calculatePercentage(
+                              item.count,
+                              patientAnalytics.gender_distribution[0]?.count || 1
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="font-medium">{item.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Age Groups */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Age Groups
+              </h3>
+              <div className="space-y-3">
+                {patientAnalytics.age_groups?.map((item) => (
+                  <div
+                    key={item.range}
+                    className="flex justify-between items-center"
+                  >
+                    <span className="text-gray-600">{item.range}</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-600 h-2 rounded-full"
+                          style={{
+                            width: `${calculatePercentage(
+                              item.count,
+                              patientAnalytics.age_groups[0]?.count || 1
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="font-medium">{item.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Civil Status Distribution */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Civil Status Distribution
+              </h3>
+              <div className="space-y-3">
+                {patientAnalytics.civil_status_distribution?.map((item) => (
+                  <div
+                    key={item.civil_status}
+                    className="flex justify-between items-center"
+                  >
+                    <span className="text-gray-600">{item.civil_status}</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-purple-600 h-2 rounded-full"
+                          style={{
+                            width: `${calculatePercentage(
+                              item.count,
+                              patientAnalytics.civil_status_distribution[0]
+                                ?.count || 1
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="font-medium">{item.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Nationality Distribution */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Nationality Distribution
+              </h3>
+              <div className="space-y-3">
+                {patientAnalytics.nationality_distribution?.map((item) => (
+                  <div
+                    key={item.nationality}
+                    className="flex justify-between items-center"
+                  >
+                    <span className="text-gray-600">{item.nationality}</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-orange-600 h-2 rounded-full"
+                          style={{
+                            width: `${calculatePercentage(
+                              item.count,
+                              patientAnalytics.nationality_distribution[0]
+                                ?.count || 1
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="font-medium">{item.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Registration Trends */}
+            <div className="card lg:col-span-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Registration Trends
+              </h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {patientAnalytics.registration_trends?.map((item) => (
+                  <div key={item.date} className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      {new Date(item.date).toLocaleDateString()}
+                    </span>
+                    <span className="font-medium">{item.count} registrations</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Queue Tab */}
+      {activeTab === "queue" && queueAnalytics && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Queue Analytics
+            </h2>
+            <button
+              onClick={() => handleExport("queue")}
+              className="btn-primary flex items-center space-x-2"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5" />
+              <span>Export CSV</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Status Distribution */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Status Distribution
+              </h3>
+              <div className="space-y-3">
+                {queueAnalytics.status_distribution?.map((item) => (
+                  <div
+                    key={item.status}
+                    className="flex justify-between items-center"
+                  >
+                    <span className="text-gray-600 capitalize">{item.status}</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{
+                            width: `${calculatePercentage(
+                              item.count,
+                              queueAnalytics.status_distribution[0]?.count || 1
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="font-medium">{item.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Peak Hours */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Peak Hours
+              </h3>
+              <div className="space-y-3">
+                {queueAnalytics.peak_hours?.map((item) => (
+                  <div
+                    key={item.hour}
+                    className="flex justify-between items-center"
+                  >
+                    <span className="text-gray-600">
+                      {item.hour}:00 - {item.hour + 1}:00
+                    </span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-600 h-2 rounded-full"
+                          style={{
+                            width: `${calculatePercentage(
+                              item.count,
+                              queueAnalytics.peak_hours[0]?.count || 1
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="font-medium">{item.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Daily Trends */}
+            <div className="card lg:col-span-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Daily Trends
+              </h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {queueAnalytics.daily_trends?.map((item) => (
+                  <div key={item.date} className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      {new Date(item.date).toLocaleDateString()}
+                    </span>
+                    <span className="font-medium">{item.count} entries</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Medical Records Tab */}
+      {activeTab === "medical-records" && medicalRecordsAnalytics && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Medical Records Analytics
+            </h2>
+            <button
+              onClick={() => handleExport("medical_records")}
+              className="btn-primary flex items-center space-x-2"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5" />
+              <span>Export CSV</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Diagnoses */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Top Diagnoses
+              </h3>
+              <div className="space-y-3">
+                {medicalRecordsAnalytics.top_diagnoses?.map((item) => (
+                  <div
+                    key={item.diagnosis}
+                    className="flex justify-between items-center"
+                  >
+                    <span className="text-gray-600">{item.diagnosis}</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{
+                            width: `${calculatePercentage(
+                              item.diagnosis_count,
+                              medicalRecordsAnalytics.top_diagnoses[0]
+                                ?.diagnosis_count || 1
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="font-medium">{item.diagnosis_count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Top Doctors */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Top Doctors
+              </h3>
+              <div className="space-y-3">
+                {medicalRecordsAnalytics.top_doctors?.map((item) => (
+                  <div
+                    key={item.doctor_name}
+                    className="flex justify-between items-center"
+                  >
+                    <span className="text-gray-600">{item.doctor_name}</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{
+                            width: `${calculatePercentage(
+                              item.visit_count,
+                              medicalRecordsAnalytics.top_doctors[0]
+                                ?.visit_count || 1
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="font-medium">{item.visit_count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* PDF Attachment Stats */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                PDF Attachment Statistics
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Records</span>
+                  <span className="font-medium">
+                    {formatNumber(
+                      medicalRecordsAnalytics.pdf_attachment_stats.total_records
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">With PDF</span>
+                  <span className="font-medium text-green-600">
+                    {formatNumber(
+                      medicalRecordsAnalytics.pdf_attachment_stats
+                        .records_with_pdf
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Attachment Rate</span>
+                  <span className="font-medium">
+                    {
+                      medicalRecordsAnalytics.pdf_attachment_stats
+                        .pdf_attachment_rate
+                    }
+                    %
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Visit Trends */}
+            <div className="card lg:col-span-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Visit Trends
+              </h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {medicalRecordsAnalytics.visit_trends?.map((item) => (
+                  <div key={item.date} className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      {new Date(item.date).toLocaleDateString()}
+                    </span>
+                    <span className="font-medium">{item.count} visits</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Registration Tab */}
+      {activeTab === "pre-registration" && preRegistrationAnalytics && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Pre-Registration Analytics
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Status Distribution */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Status Distribution
+              </h3>
+              <div className="space-y-3">
+                {preRegistrationAnalytics.status_distribution?.map((item) => (
+                  <div
+                    key={item.status}
+                    className="flex justify-between items-center"
+                  >
+                    <span className="text-gray-600 capitalize">{item.status}</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{
+                            width: `${calculatePercentage(
+                              item.count,
+                              preRegistrationAnalytics.status_distribution[0]
+                                ?.count || 1
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="font-medium">{item.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Approval Trends */}
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Approval Trends
+              </h3>
+              <div className="space-y-3">
+                {preRegistrationAnalytics.approval_trends?.map((item) => (
+                  <div key={item.date} className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      {new Date(item.date).toLocaleDateString()}
+                    </span>
+                    <div className="flex space-x-4">
+                      <span className="text-green-600">
+                        {item.approved} approved
+                      </span>
+                      <span className="text-red-600">
+                        {item.rejected} rejected
+                      </span>
+                      <span className="font-medium">{item.total} total</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Conversion Stats */}
+            <div className="card lg:col-span-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Conversion Statistics
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">Total Pre-Registrations</p>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {formatNumber(
+                      preRegistrationAnalytics.conversion_stats
+                        .total_pre_registrations
+                    )}
+                  </p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <p className="text-sm text-green-800">Approved</p>
+                  <p className="text-2xl font-bold text-green-900">
+                    {formatNumber(
+                      preRegistrationAnalytics.conversion_stats
+                        .approved_pre_registrations
+                    )}
+                  </p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <p className="text-sm text-purple-800">Approval Rate</p>
+                  <p className="text-2xl font-bold text-purple-900">
+                    {
+                      preRegistrationAnalytics.conversion_stats.approval_rate
+                    }%
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Reports;

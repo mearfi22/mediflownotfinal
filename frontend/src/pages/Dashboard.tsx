@@ -5,14 +5,21 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
+  PlayIcon,
+  CheckIcon,
 } from "@heroicons/react/24/outline";
-import { queueApi, patientApi, preRegistrationApi } from "../services/api";
+import { queueApi, patientsApi, preRegistrationApi, reportsApi } from "../services/api";
 import { QueueStatistics, Patient, PreRegistration, Queue } from "../types";
+import { useAuth } from "../contexts/AuthContext";
 import QueueTicketPrint from "../components/QueueTicketPrint";
 
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  const isDoctorView = user?.role === 'doctor' || (user?.doctor_id !== undefined && user?.doctor_id !== null);
+  
   const [stats, setStats] = useState<QueueStatistics | null>(null);
   const [recentPatients, setRecentPatients] = useState<Patient[]>([]);
+  const [myQueue, setMyQueue] = useState<Queue[]>([]);
   const [pendingPreRegistrations, setPendingPreRegistrations] = useState<
     PreRegistration[]
   >([]);
@@ -20,8 +27,13 @@ const Dashboard: React.FC = () => {
     null
   );
   const [newQueue, setNewQueue] = useState<Queue | null>(null);
+  const [topDoctorsWeekly, setTopDoctorsWeekly] = useState<any[]>([]);
+  const [topDoctorsMonthly, setTopDoctorsMonthly] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
   useEffect(() => {
     fetchDashboardData();
@@ -29,21 +41,79 @@ const Dashboard: React.FC = () => {
     // Refresh data every 30 seconds
     const interval = setInterval(fetchDashboardData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedDate, isDoctorView]);
 
   const fetchDashboardData = async () => {
     try {
-      const [statsData, patientsData, preRegData] = await Promise.all([
-        queueApi.getStatistics(),
-        patientApi.getAll(1),
-        preRegistrationApi.getAll(1),
-      ]);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      
+      const promises = [
+        queueApi.getStatistics(selectedDate),
+        patientsApi.getAll(),
+        preRegistrationApi.getAll(),
+      ];
 
-      setStats(statsData);
-      setRecentPatients(patientsData.data.slice(0, 5));
-      setPendingPreRegistrations(
-        preRegData.data.filter((reg) => reg.status === "pending").slice(0, 5)
-      );
+      // Only fetch top doctors for admin view
+      if (!isDoctorView) {
+        promises.push(
+          reportsApi.getMedicalRecordsAnalytics(
+            weekAgo.toISOString().split('T')[0],
+            new Date().toISOString().split('T')[0]
+          ),
+          reportsApi.getMedicalRecordsAnalytics(
+            monthAgo.toISOString().split('T')[0],
+            new Date().toISOString().split('T')[0]
+          )
+        );
+      } else {
+        // Fetch doctor's queue
+        promises.push(queueApi.getAll(selectedDate));
+      }
+
+      const results = await Promise.all(promises);
+      const [statsData, patientsData, preRegData, ...extraData] = results;
+
+      setStats(statsData.data);
+      
+      // Handle paginated response from Laravel
+      const patients = Array.isArray(patientsData.data) 
+        ? patientsData.data 
+        : patientsData.data?.data || [];
+      setRecentPatients(patients.slice(0, 5));
+      
+      // Pre-registrations API returns paginated data
+      const preRegs = Array.isArray(preRegData.data)
+        ? preRegData.data
+        : preRegData.data?.data || [];
+      
+      if (isDoctorView) {
+        // Filter pre-registrations for this doctor
+        setPendingPreRegistrations(
+          preRegs.filter((reg) => 
+            reg.status === "pending" && reg.doctor_id === user?.doctor_id
+          ).slice(0, 5)
+        );
+        
+        // Set doctor's queue from extra data
+        const queueData = extraData[0];
+        const allQueue = queueData?.data || [];
+        setMyQueue(allQueue.filter((q: Queue) => q.doctor_id === user?.doctor_id));
+      } else {
+        // Admin view - all pending pre-registrations
+        setPendingPreRegistrations(
+          preRegs.filter((reg) => reg.status === "pending").slice(0, 5)
+        );
+        
+        // Set top doctors data
+        const weeklyDoctors = extraData[0];
+        const monthlyDoctors = extraData[1];
+        setTopDoctorsWeekly(weeklyDoctors?.data.top_doctors?.slice(0, 5) || []);
+        setTopDoctorsMonthly(monthlyDoctors?.data.top_doctors?.slice(0, 5) || []);
+      }
+      
       setError("");
     } catch (err: any) {
       setError("Failed to load dashboard data");
@@ -57,8 +127,8 @@ const Dashboard: React.FC = () => {
     try {
       const response = await preRegistrationApi.approve(preRegId);
       // Automatically trigger print for the new queue ticket
-      if (response.queue) {
-        setNewQueue(response.queue);
+      if (response.data.queue) {
+        setNewQueue(response.data.queue);
       }
       fetchDashboardData(); // Refresh data
     } catch (error) {
@@ -79,6 +149,62 @@ const Dashboard: React.FC = () => {
         alert("Failed to reject pre-registration");
       }
     }
+  };
+
+  const handleStatusChange = async (queueItem: Queue, status: Queue['status']) => {
+    try {
+      const updatedQueue = await queueApi.update(queueItem.id, { status });
+      setMyQueue(
+        myQueue.map((item) => (item.id === queueItem.id ? updatedQueue.data : item))
+      );
+      // Refresh stats
+      fetchDashboardData();
+    } catch (error) {
+      console.error("Error updating queue status:", error);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "waiting":
+        return "bg-yellow-100 text-yellow-800";
+      case "attending":
+        return "bg-blue-100 text-blue-800";
+      case "attended":
+        return "bg-green-100 text-green-800";
+      case "skipped":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    const badges = {
+      emergency: "bg-red-600 text-white",
+      senior: "bg-purple-600 text-white",
+      pwd: "bg-indigo-600 text-white",
+      regular: "bg-gray-400 text-white",
+    };
+    const labels = {
+      emergency: "EMERGENCY",
+      senior: "SENIOR",
+      pwd: "PWD",
+      regular: "REGULAR",
+    };
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-bold rounded ${badges[priority as keyof typeof badges] || badges.regular}`}>
+        {labels[priority as keyof typeof labels] || labels.regular}
+      </span>
+    );
+  };
+
+  const formatTime = (dateString?: string) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   if (loading) {
@@ -127,11 +253,25 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">
-          Welcome to Roxas Memorial Provincial Hospital Management System
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isDoctorView ? "My Dashboard" : "Dashboard"}
+          </h1>
+          <p className="text-gray-600">
+            {isDoctorView 
+              ? `Welcome back, ${user?.name || 'Doctor'}` 
+              : "Overview of hospital queue and patient management"}
+          </p>
+        </div>
+        {isDoctorView && (
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="input"
+          />
+        )}
       </div>
 
       {/* Statistics Cards */}
@@ -175,6 +315,85 @@ const Dashboard: React.FC = () => {
               Manage Queue
             </Link>
           </div>
+        </div>
+      )}
+
+      {/* Doctor's Queue Management (Only for doctor view) */}
+      {isDoctorView && (
+        <div className="card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            My Queue - {selectedDate}
+          </h3>
+          {myQueue.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {myQueue.map((queueItem) => (
+                <div
+                  key={queueItem.id}
+                  className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-blue-300 transition-all"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-blue-100 rounded-lg px-3 py-2">
+                        <div className="text-xl font-bold text-blue-600">
+                          #{queueItem.queue_number}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900">
+                          {queueItem.patient?.full_name}
+                        </div>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(queueItem.status)}`}>
+                            {queueItem.status.charAt(0).toUpperCase() + queueItem.status.slice(1)}
+                          </span>
+                          {getPriorityBadge(queueItem.priority)}
+                        </div>
+                      </div>
+                    </div>
+                    {queueItem.estimated_wait_minutes !== null && 
+                     queueItem.estimated_wait_minutes !== undefined && 
+                     queueItem.status === 'waiting' && (
+                      <div className="bg-yellow-50 rounded px-2 py-1 border border-yellow-200">
+                        <div className="text-xs text-yellow-600">Est. Wait</div>
+                        <div className="text-sm font-bold text-yellow-700">
+                          {queueItem.estimated_wait_minutes}m
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-sm text-gray-600 mb-3">
+                    <strong>Reason:</strong> {queueItem.reason_for_visit}
+                  </div>
+
+                  <div className="flex justify-end items-center space-x-2 pt-3 border-t">
+                    {queueItem.status === "waiting" && (
+                      <button
+                        onClick={() => handleStatusChange(queueItem, "attending")}
+                        className="inline-flex items-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        <PlayIcon className="h-4 w-4 mr-1" />
+                        Start
+                      </button>
+                    )}
+                    {queueItem.status === "attending" && (
+                      <button
+                        onClick={() => handleStatusChange(queueItem, "attended")}
+                        className="inline-flex items-center px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      >
+                        <CheckIcon className="h-4 w-4 mr-1" />
+                        Complete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-8">
+              No patients in your queue for {selectedDate}
+            </p>
+          )}
         </div>
       )}
 
@@ -366,6 +585,91 @@ const Dashboard: React.FC = () => {
           </p>
         )}
       </div>
+
+      {/* Top Doctors - Only for Admin View */}
+      {!isDoctorView && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top Doctors This Week */}
+          <div className="card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Top Doctors This Week
+          </h3>
+          {topDoctorsWeekly.length > 0 ? (
+            <div className="space-y-3">
+              {topDoctorsWeekly.map((doctor, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-blue-600">
+                        #{index + 1}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {doctor.doctor_name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {doctor.visit_count} patients handled
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-blue-600">
+                      {doctor.visit_count}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-4">No data available</p>
+          )}
+        </div>
+
+        {/* Top Doctors This Month */}
+        <div className="card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Top Doctors This Month
+          </h3>
+          {topDoctorsMonthly.length > 0 ? (
+            <div className="space-y-3">
+              {topDoctorsMonthly.map((doctor, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-green-600">
+                        #{index + 1}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {doctor.doctor_name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {doctor.visit_count} patients handled
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-green-600">
+                      {doctor.visit_count}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-4">No data available</p>
+          )}
+        </div>
+      </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -584,13 +888,53 @@ const Dashboard: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Medical Information
                   </h3>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Reason for Visit
-                    </label>
-                    <p className="font-semibold mt-1">
-                      {selectedPreReg.reason_for_visit}
-                    </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-gray-500">
+                        Reason for Visit
+                      </label>
+                      <p className="font-semibold mt-1">
+                        {selectedPreReg.reason_for_visit}
+                      </p>
+                    </div>
+                    {selectedPreReg.priority && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">
+                          Priority
+                        </label>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            selectedPreReg.priority === "emergency"
+                              ? "bg-red-100 text-red-800"
+                              : selectedPreReg.priority === "senior" || selectedPreReg.priority === "pwd"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {selectedPreReg.priority.toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    {selectedPreReg.department && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">
+                          Department
+                        </label>
+                        <p className="font-semibold">
+                          {selectedPreReg.department.name}
+                        </p>
+                      </div>
+                    )}
+                    {selectedPreReg.doctor && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">
+                          Assigned Doctor
+                        </label>
+                        <p className="font-semibold">
+                          Dr. {selectedPreReg.doctor.full_name}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

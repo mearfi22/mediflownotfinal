@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { medicalRecordApi, patientApi } from "../services/api";
-import { MedicalRecord, Patient, PaginatedResponse } from "../types";
+import { useSearchParams } from "react-router-dom";
+import { medicalRecordsApi, patientsApi } from "../services/api";
+import { MedicalRecord, Patient } from "../types";
+import MedicalRecordModal from "../components/MedicalRecordModal";
+import MedicalRecordPrint from "../components/MedicalRecordPrint";
 import {
   PlusIcon,
   EyeIcon,
@@ -9,11 +12,11 @@ import {
   MagnifyingGlassIcon,
   PrinterIcon,
   DocumentIcon,
+  UserIcon,
 } from "@heroicons/react/24/outline";
-import MedicalRecordModal from "../components/MedicalRecordModal.tsx";
-import MedicalRecordPrint from "../components/MedicalRecordPrint";
 
 const MedicalRecords: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +34,7 @@ const MedicalRecords: React.FC = () => {
   const [printRecord, setPrintRecord] = useState<MedicalRecord | null>(null);
   const [searchPatient, setSearchPatient] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
-    null
+    searchParams.get('patient_id') ? Number(searchParams.get('patient_id')) : null
   );
 
   useEffect(() => {
@@ -42,19 +45,38 @@ const MedicalRecords: React.FC = () => {
   const fetchRecords = async () => {
     try {
       setLoading(true);
-      const response: PaginatedResponse<MedicalRecord> =
-        await medicalRecordApi.getAll(
-          pagination.current_page,
-          selectedPatientId || undefined
-        );
-      setRecords(response.data);
+      const response = await medicalRecordsApi.getAll();
+      // Ensure we have an array
+      const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+      
+      // Filter by selected patient if applicable
+      let filteredRecords = data;
+      if (selectedPatientId) {
+        filteredRecords = filteredRecords.filter(record => record.patient_id === selectedPatientId);
+      } else {
+        // Group by patient and get only the most recent record for each patient
+        const latestRecordsByPatient = new Map<number, MedicalRecord>();
+        
+        filteredRecords.forEach(record => {
+          const existingRecord = latestRecordsByPatient.get(record.patient_id);
+          if (!existingRecord || new Date(record.updated_at) > new Date(existingRecord.updated_at)) {
+            latestRecordsByPatient.set(record.patient_id, record);
+          }
+        });
+        
+        filteredRecords = Array.from(latestRecordsByPatient.values());
+      }
+      
+      setRecords(filteredRecords);
+      // Since there's no pagination, we'll set pagination to default values
       setPagination({
-        current_page: response.current_page,
-        last_page: response.last_page,
-        total: response.total,
+        current_page: 1,
+        last_page: 1,
+        total: filteredRecords.length,
       });
     } catch (error) {
       console.error("Error fetching medical records:", error);
+      setRecords([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -62,10 +84,13 @@ const MedicalRecords: React.FC = () => {
 
   const fetchPatients = async () => {
     try {
-      const response = await patientApi.getAll(1); // Get first page of patients
-      setPatients(response.data);
+      const response = await patientsApi.getAll();
+      // Ensure we have an array
+      const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+      setPatients(data);
     } catch (error) {
       console.error("Error fetching patients:", error);
+      setPatients([]); // Set empty array on error
     }
   };
 
@@ -97,7 +122,7 @@ const MedicalRecords: React.FC = () => {
       window.confirm("Are you sure you want to delete this medical record?")
     ) {
       try {
-        await medicalRecordApi.delete(record.id);
+        await medicalRecordsApi.delete(record.id);
         fetchRecords();
       } catch (error) {
         console.error("Error deleting medical record:", error);
@@ -106,13 +131,11 @@ const MedicalRecords: React.FC = () => {
     }
   };
 
-  const handleSaveRecord = async (data: FormData | Partial<MedicalRecord>) => {
+  const handleSaveRecord = async (data: Partial<MedicalRecord>) => {
     try {
-      if (selectedRecord) {
-        await medicalRecordApi.update(selectedRecord.id, data);
-      } else {
-        await medicalRecordApi.create(data as any);
-      }
+      // Always create a new record (even when "editing" - it creates a new visit entry)
+      // This builds up the medical history instead of overwriting it
+      await medicalRecordsApi.create(data);
       setIsModalOpen(false);
       fetchRecords();
     } catch (error) {
@@ -142,6 +165,23 @@ const MedicalRecords: React.FC = () => {
           <p className="text-gray-600">
             View and manage patient medical history
           </p>
+          {selectedPatientId && (
+            <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+              <UserIcon className="h-4 w-4 text-blue-600" />
+              <span className="text-sm text-blue-900">
+                Viewing records for: <strong>{getPatientName(selectedPatientId)}</strong>
+              </span>
+              <button
+                onClick={() => {
+                  setSelectedPatientId(null);
+                  setSearchParams({});
+                }}
+                className="text-blue-600 hover:text-blue-900 text-sm underline"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
         <button
           onClick={handleAddRecord}
@@ -223,16 +263,16 @@ const MedicalRecords: React.FC = () => {
                       Patient
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Visit Date
+                      Last Date Visited
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Last Updated
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Diagnosis
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Doctor
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      PDF
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
@@ -243,15 +283,32 @@ const MedicalRecords: React.FC = () => {
                   {records.map((record) => (
                     <tr key={record.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {record.patient?.full_name ||
-                            getPatientName(record.patient_id)}
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {record.patient?.full_name ||
+                              getPatientName(record.patient_id)}
+                          </div>
+                          {record.patient?.patient_uid && (
+                            <div className="text-xs text-gray-500 font-mono">
+                              ID: {record.patient.patient_uid.substring(0, 8).toUpperCase()}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           {formatDate(record.visit_date)}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {record.updated_at ? formatDate(record.updated_at) : formatDate(record.visit_date)}
+                        </div>
+                        {record.updated_at && record.updated_at !== record.created_at && (
+                          <div className="text-xs text-blue-600">
+                            (Edited)
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 max-w-xs truncate">
@@ -262,23 +319,6 @@ const MedicalRecords: React.FC = () => {
                         <div className="text-sm text-gray-900">
                           {record.doctor_name}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {record.pdf_file_path ? (
-                          <button
-                            onClick={() => {
-                              const url = `http://localhost:8000/api/medical-records/${record.id}/download-pdf`;
-                              window.open(url, "_blank");
-                            }}
-                            className="text-green-600 hover:text-green-900 flex items-center space-x-1"
-                            title="Download PDF"
-                          >
-                            <DocumentIcon className="h-5 w-5" />
-                            <span className="text-xs">PDF</span>
-                          </button>
-                        ) : (
-                          <span className="text-gray-400 text-xs">No PDF</span>
-                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
@@ -368,6 +408,7 @@ const MedicalRecords: React.FC = () => {
           record={selectedRecord}
           patients={patients}
           isViewMode={isViewMode}
+          existingRecords={records}
         />
       )}
 

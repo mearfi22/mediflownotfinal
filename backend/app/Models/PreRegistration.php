@@ -23,10 +23,13 @@ class PreRegistration extends Model
         'religion',
         'occupation',
         'reason_for_visit',
+        'priority',
         'philhealth_id',
         'status',
         'approved_by',
-        'approved_at'
+        'approved_at',
+        'department_id',
+        'doctor_id'
     ];
 
     protected $casts = [
@@ -37,6 +40,16 @@ class PreRegistration extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class, 'doctor_id');
     }
 
     public function toPatientArray(): array
@@ -58,6 +71,9 @@ class PreRegistration extends Model
             'contact_number' => $this->contact_number,
             'philhealth_id' => $this->philhealth_id,
             'reason_for_visit' => $this->reason_for_visit,
+            'department_id' => $this->department_id,
+            'doctor_id' => $this->doctor_id,
+            'priority' => $this->priority ?? 'regular',
         ];
     }
 }
