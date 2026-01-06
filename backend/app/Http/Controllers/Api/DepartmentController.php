@@ -15,7 +15,15 @@ class DepartmentController extends Controller
      */
     public function index(): JsonResponse
     {
-        $departments = Department::withCount(['doctors', 'queueEntries'])
+        $departments = Department::withCount([
+                'doctors' => function ($query) {
+                    $query->whereHas('user'); // Only count registered doctors
+                },
+                'queueEntries'
+            ])
+            ->with(['doctors' => function ($query) {
+                $query->whereHas('user')->with('user'); // Only load registered doctors with their user
+            }])
             ->orderBy('name')
             ->get();
 
@@ -53,7 +61,16 @@ class DepartmentController extends Controller
      */
     public function show(Department $department): JsonResponse
     {
-        $department->loadCount(['doctors', 'queueEntries']);
+        $department->loadCount([
+            'doctors' => function ($query) {
+                $query->whereHas('user'); // Only count registered doctors
+            },
+            'queueEntries'
+        ]);
+
+        $department->load(['doctors' => function ($query) {
+            $query->whereHas('user')->with('user'); // Only load registered doctors with their user
+        }]);
 
         return response()->json($department);
     }

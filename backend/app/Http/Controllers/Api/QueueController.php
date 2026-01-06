@@ -81,7 +81,7 @@ class QueueController extends Controller
     public function update(Request $request, Queue $queue): JsonResponse
     {
         $validated = $request->validate([
-            'status' => 'required|in:waiting,attending,attended,skipped',
+            'status' => 'required|in:waiting,attending,attended,no_show',
             'department_id' => 'nullable|exists:departments,id',
             'doctor_id' => 'nullable|exists:doctors,id',
             'priority' => 'nullable|in:regular,senior,pwd,emergency',
@@ -127,7 +127,7 @@ class QueueController extends Controller
                 ->where('status', 'attending')
                 ->first(),
             'served' => Queue::whereDate('queue_date', $date)->where('status', 'attended')->count(),
-            'skipped' => Queue::whereDate('queue_date', $date)->where('status', 'skipped')->count(),
+            'no_show' => Queue::whereDate('queue_date', $date)->where('status', 'no_show')->count(),
             'waiting' => Queue::whereDate('queue_date', $date)->where('status', 'waiting')->count(),
         ];
 
@@ -172,12 +172,15 @@ class QueueController extends Controller
 
     /**
      * Get doctors for dropdown (all or by department)
+     * Only returns doctors who have registered user accounts
      */
     public function getDoctors(Request $request): JsonResponse
     {
         $departmentId = $request->get('department_id');
 
-        $query = Doctor::with('department')->where('status', 'active');
+        $query = Doctor::with('department')
+            ->where('status', 'active')
+            ->whereHas('user'); // Only doctors with user accounts
 
         if ($departmentId) {
             $query->where('department_id', $departmentId);
@@ -205,7 +208,16 @@ class QueueController extends Controller
             'from_department_id' => $queue->department_id,
             'to_department_id' => $validated['to_department_id'] ?? null,
             'reason' => $validated['reason'] ?? null,
-            'transferred_by' => auth()->id(),
+            'transferred_by' => auth()->user()?->id,
+        ]);
+
+        // Load relationships for the transfer
+        $transfer->load([
+            'fromDoctor',
+            'toDoctor',
+            'fromDepartment',
+            'toDepartment',
+            'transferredBy',
         ]);
 
         $queue->update([

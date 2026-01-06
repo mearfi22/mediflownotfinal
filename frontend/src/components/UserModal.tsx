@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { User, Department } from "../types";
 
 interface UserModalProps {
@@ -33,20 +33,41 @@ const UserModal: React.FC<UserModalProps> = ({
   departments,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [originalData, setOriginalData] = useState<FormData | null>(null);
   const {
     register,
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormData>();
 
   const watchedRole = watch("role");
+  const watchedName = watch("name");
+  const watchedEmail = watch("email");
+
+  // Auto-add "Dr." prefix to doctor full name when name changes and role is doctor
+  useEffect(() => {
+    if (watchedRole === "doctor" && watchedName) {
+      const nameWithoutDr = watchedName.replace(/^Dr\.\s*/i, "");
+      const doctorFullName = nameWithoutDr ? `Dr. ${nameWithoutDr}` : "";
+      setValue("doctor_profile.full_name", doctorFullName);
+    }
+  }, [watchedName, watchedRole, setValue]);
+
+  // Auto-fill doctor email when email changes and role is doctor
+  useEffect(() => {
+    if (watchedRole === "doctor" && watchedEmail) {
+      setValue("doctor_profile.email", watchedEmail);
+    }
+  }, [watchedEmail, watchedRole, setValue]);
 
   useEffect(() => {
     if (isOpen) {
       if (user) {
-        reset({
+        const initialData = {
           name: user.name,
           email: user.email,
           role: user.role as "admin" | "staff" | "doctor",
@@ -59,19 +80,48 @@ const UserModal: React.FC<UserModalProps> = ({
                 avg_consultation_minutes: user.doctor.avg_consultation_minutes,
               }
             : undefined,
-        });
+        };
+        reset(initialData);
+        setOriginalData(initialData);
       } else {
-        reset({
+        const initialData = {
           name: "",
           email: "",
           password: "",
-          role: "staff",
-        });
+          role: "staff" as const,
+        };
+        reset(initialData);
+        setOriginalData(initialData);
       }
     }
   }, [isOpen, user, reset]);
 
   const onSubmit = async (data: FormData) => {
+    // Check if any changes were made (only for edit mode)
+    if (user && originalData) {
+      const hasChanges = 
+        data.name !== originalData.name ||
+        data.email !== originalData.email ||
+        data.password || // If password field has value, there are changes
+        data.role !== originalData.role ||
+        (data.doctor_profile && originalData.doctor_profile && (
+          data.doctor_profile.department_id !== originalData.doctor_profile.department_id ||
+          data.doctor_profile.full_name !== originalData.doctor_profile.full_name ||
+          data.doctor_profile.email !== originalData.doctor_profile.email ||
+          data.doctor_profile.phone !== originalData.doctor_profile.phone ||
+          data.doctor_profile.avg_consultation_minutes !== originalData.doctor_profile.avg_consultation_minutes
+        ));
+
+      if (hasChanges) {
+        const confirmed = window.confirm(
+          "You have made changes to this user account. Do you want to save these changes?"
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+    }
+
     try {
       setLoading(true);
       await onSave(data);
@@ -156,18 +206,31 @@ const UserModal: React.FC<UserModalProps> = ({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Password {!user && "*"}
                 </label>
-                <input
-                  type="password"
-                  {...register("password", {
-                    required: !user ? "Password is required" : false,
-                    minLength: {
-                      value: 6,
-                      message: "Password must be at least 6 characters",
-                    },
-                  })}
-                  className="input"
-                  placeholder={user ? "Leave blank to keep current" : "Enter password"}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    {...register("password", {
+                      required: !user ? "Password is required" : false,
+                      minLength: {
+                        value: 6,
+                        message: "Password must be at least 6 characters",
+                      },
+                    })}
+                    className="input pr-10"
+                    placeholder={user ? "Leave blank to keep current" : "Enter password"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-600">
                     {errors.password.message}
@@ -305,14 +368,14 @@ const UserModal: React.FC<UserModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary"
+              className="btn btn-secondary"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn-primary"
+              className="btn btn-primary"
               disabled={loading}
             >
               {loading ? (

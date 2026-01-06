@@ -3,7 +3,11 @@ export interface User {
   name: string;
   email: string;
   role: "admin" | "staff" | "doctor";
+  status: "pending" | "active" | "rejected";
   doctor_id?: number; // Links staff user to a doctor profile
+  doctor?: Doctor; // Doctor profile if user is a doctor
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Patient {
@@ -42,6 +46,7 @@ export interface Department {
   name: string;
   doctors_count?: number;
   queue_entries_count?: number;
+  doctors?: Doctor[]; // Registered doctors in this department
   created_at: string;
   updated_at: string;
 }
@@ -68,6 +73,15 @@ export interface MedicalRecord {
   notes?: string;
   doctor_name: string;
   pdf_file_path?: string;
+  // Admission fields
+  admission_date?: string;
+  admission_time?: string;
+  ward_room?: string;
+  admitting_remarks?: string;
+  admitting_diagnosis?: string;
+  admitting_rod?: string;
+  consultant_on_deck?: string;
+  er_nurse_on_duty?: string;
   patient?: Patient;
   created_at: string;
   updated_at: string;
@@ -78,7 +92,7 @@ export interface Queue {
   queue_number: number;
   patient_id: number;
   reason_for_visit: string;
-  status: "waiting" | "attending" | "attended" | "skipped";
+  status: "waiting" | "attending" | "attended" | "no_show";
   priority: "regular" | "senior" | "pwd" | "emergency";
   estimated_wait_minutes?: number;
   called_at?: string;
@@ -130,7 +144,7 @@ export interface QueueStatistics {
   total_patients_today: number;
   now_serving: Queue | undefined;
   served: number;
-  skipped: number;
+  no_show: number;
   waiting: number;
 }
 
@@ -169,24 +183,37 @@ export interface DashboardStats {
     queue_served: number;
     queue_waiting: number;
     queue_serving: number;
-    queue_skipped: number;
+    queue_no_show: number;
   };
 }
 
 export interface PatientAnalytics {
   gender_distribution: Array<{ gender: string; count: number }>;
-  age_groups: Array<{ range: string; count: number }>;
+  age_distribution: Array<{ age_group: string; count: number }>;
   civil_status_distribution: Array<{ civil_status: string; count: number }>;
-  nationality_distribution: Array<{ nationality: string; count: number }>;
   registration_trends: Array<{ date: string; count: number }>;
-  top_reasons_for_visit: Array<{ reason: string; count: number }>;
+  // Computed properties for easier access
+  total_patients?: number;
+  total_male?: number;
+  total_female?: number;
+  active_patients?: number;
 }
 
 export interface QueueAnalytics {
-  daily_trends: Array<{ date: string; count: number }>;
   status_distribution: Array<{ status: string; count: number }>;
-  avg_wait_time: number;
+  daily_trends: Array<{ date: string; total: number; served: number; no_show: number }>;
   peak_hours: Array<{ hour: number; count: number }>;
+  waiting_time_stats: {
+    avg_wait_minutes: number;
+    min_wait_minutes: number;
+    max_wait_minutes: number;
+  };
+  // Computed properties
+  total_queue?: number;
+  total_attended?: number;
+  total_waiting?: number;
+  total_no_show?: number;
+  avg_wait_time?: number;
 }
 
 export interface MedicalRecordsAnalytics {
@@ -204,6 +231,11 @@ export interface MedicalRecordsAnalytics {
     month: number;
     count: number;
   }>;
+  // Computed properties
+  total_records?: number;
+  records_this_month?: number;
+  records_this_week?: number;
+  records_today?: number;
 }
 
 export interface PreRegistrationAnalytics {
@@ -219,6 +251,12 @@ export interface PreRegistrationAnalytics {
     approved_pre_registrations: number;
     approval_rate: number;
   };
+  // Computed properties
+  total?: number;
+  pending?: number;
+  approved?: number;
+  rejected?: number;
+  no_show?: number;
 }
 
 export interface QueueTransfer {

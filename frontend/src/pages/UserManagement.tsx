@@ -8,20 +8,38 @@ import {
   UserGroupIcon,
   UserCircleIcon,
   ShieldCheckIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 import UserModal from "../components/UserModal";
+import ConfirmDialog from "../components/ConfirmDialog";
+import AlertDialog from "../components/AlertDialog";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [filterRole, setFilterRole] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showPendingSection, setShowPendingSection] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    show: boolean;
+    type: 'delete' | 'approve' | null;
+    user: User | null;
+  }>({ show: false, type: null, user: null });
+  const [alertDialog, setAlertDialog] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info';
+    message: string;
+  }>({ show: false, type: 'info', message: '' });
 
   useEffect(() => {
     fetchUsers();
+    fetchPendingUsers();
     fetchDepartments();
   }, [filterRole]);
 
@@ -30,10 +48,11 @@ const UserManagement: React.FC = () => {
       setLoading(true);
       const params = filterRole !== "all" ? { role: filterRole } : {};
       const response = await usersApi.getAll(params);
-      const data = Array.isArray(response.data)
+      const data: User[] = Array.isArray(response.data)
         ? response.data
-        : response.data?.data || [];
-      setUsers(data);
+        : (response.data as any)?.data || [];
+      // Filter to show only active users
+      setUsers(data.filter(u => u.status === 'active'));
     } catch (error) {
       console.error("Error fetching users:", error);
       setUsers([]);
@@ -42,12 +61,25 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const fetchPendingUsers = async () => {
+    try {
+      const response = await usersApi.getPending();
+      const data: User[] = Array.isArray(response.data)
+        ? response.data
+        : (response.data as any)?.data || [];
+      setPendingUsers(data);
+    } catch (error) {
+      console.error("Error fetching pending users:", error);
+      setPendingUsers([]);
+    }
+  };
+
   const fetchDepartments = async () => {
     try {
       const response = await departmentsApi.getAll();
-      const data = Array.isArray(response.data)
+      const data: Department[] = Array.isArray(response.data)
         ? response.data
-        : response.data?.data || [];
+        : (response.data as any)?.data || [];
       setDepartments(data);
     } catch (error) {
       console.error("Error fetching departments:", error);
@@ -65,10 +97,14 @@ const UserManagement: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteUser = async (user: User) => {
-    if (window.confirm(`Are you sure you want to delete ${user.name}?`)) {
+  const handleDeleteUser = (user: User) => {
+    setConfirmDialog({ show: true, type: 'delete', user });
+  };
+
+  const confirmDelete = async () => {
+    if (confirmDialog.user) {
       try {
-        await usersApi.delete(user.id);
+        await usersApi.delete(confirmDialog.user.id);
         fetchUsers();
       } catch (error) {
         console.error("Error deleting user:", error);
@@ -99,6 +135,54 @@ const UserManagement: React.FC = () => {
     } catch (error) {
       console.error("Error toggling status:", error);
       alert("Failed to update status");
+    }
+  };
+
+  const handleApproveUser = (user: User) => {
+    setConfirmDialog({ show: true, type: 'approve', user });
+  };
+
+  const confirmApprove = async () => {
+    if (confirmDialog.user) {
+      try {
+        await usersApi.approve(confirmDialog.user.id);
+        fetchUsers();
+        fetchPendingUsers();
+        setAlertDialog({
+          show: true,
+          type: 'success',
+          message: `${confirmDialog.user.name} has been approved successfully!`
+        });
+      } catch (error) {
+        console.error("Error approving user:", error);
+        setAlertDialog({
+          show: true,
+          type: 'error',
+          message: 'Failed to approve user'
+        });
+      }
+    }
+  };
+
+  const handleRejectUser = async (user: User) => {
+    const reason = prompt(`Reject registration for ${user.name}?\n\nOptional: Enter reason for rejection:`);
+    if (reason !== null) {
+      try {
+        await usersApi.reject(user.id, reason);
+        fetchPendingUsers();
+        setAlertDialog({
+          show: true,
+          type: 'success',
+          message: `${user.name}'s registration has been rejected.`
+        });
+      } catch (error) {
+        console.error("Error rejecting user:", error);
+        setAlertDialog({
+          show: true,
+          type: 'error',
+          message: 'Failed to reject user'
+        });
+      }
     }
   };
 
@@ -145,15 +229,14 @@ const UserManagement: React.FC = () => {
             Manage staff and doctor accounts
           </p>
         </div>
-        <button onClick={handleAddUser} className="btn-primary">
-          <PlusIcon className="h-5 w-5 mr-2" />
+        <button onClick={handleAddUser} className="btn btn-primary flex items-center min-h-[48px] px-6">
           Add New User
         </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-blue-100 text-blue-600">
               <UserGroupIcon className="h-6 w-6" />
@@ -164,7 +247,7 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-red-100 text-red-600">
               <ShieldCheckIcon className="h-6 w-6" />
@@ -175,7 +258,7 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-blue-100 text-blue-600">
               <UserCircleIcon className="h-6 w-6" />
@@ -186,7 +269,7 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-green-100 text-green-600">
               <UserGroupIcon className="h-6 w-6" />
@@ -198,6 +281,112 @@ const UserManagement: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Pending Users Section */}
+      {pendingUsers.length > 0 && (
+        <div className="card border-yellow-200 bg-yellow-50">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <ClockIcon className="h-6 w-6 text-yellow-600 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Pending Registrations ({pendingUsers.length})
+              </h2>
+            </div>
+            <button
+              onClick={() => setShowPendingSection(!showPendingSection)}
+              className="text-sm text-yellow-700 hover:text-yellow-900 font-medium"
+            >
+              {showPendingSection ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          {showPendingSection && (
+            <div className="bg-white rounded-2xl overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Department
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Registered At
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {pendingUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.role === "doctor" && user.doctor?.full_name
+                            ? user.doctor.full_name
+                            : user.name}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadge(
+                            user.role
+                          )}`}
+                        >
+                          <span className="capitalize">{user.role}</span>
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-900">{user.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-900">
+                          {user.role === "doctor" && user.doctor?.department
+                            ? user.doctor.department.name
+                            : "—"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-500">
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleApproveUser(user)}
+                            className="flex items-center px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded-2xl"
+                            title="Approve Registration"
+                          >
+                            <CheckCircleIcon className="h-4 w-4 mr-1" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectUser(user)}
+                            className="flex items-center px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded-2xl"
+                            title="Reject Registration"
+                          >
+                            <XCircleIcon className="h-4 w-4 mr-1" />
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="card">
@@ -243,22 +432,22 @@ const UserManagement: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Department
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -270,42 +459,44 @@ const UserManagement: React.FC = () => {
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                            {user.name.charAt(0).toUpperCase()}
+                            {(user.role === "doctor" && user.doctor?.full_name 
+                              ? user.doctor.full_name 
+                              : user.name).charAt(0).toUpperCase()}
                           </div>
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {user.name}
+                            {user.role === "doctor" && user.doctor?.full_name 
+                              ? user.doctor.full_name 
+                              : user.name}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs text-gray-500">
                             ID: {user.id}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadge(
-                            user.role
-                          )}`}
-                        >
-                          {getRoleIcon(user.role)}
-                          <span className="ml-1 capitalize">{user.role}</span>
-                        </span>
-                      </div>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadge(
+                          user.role
+                        )}`}
+                      >
+                        {getRoleIcon(user.role)}
+                        <span className="ml-1 capitalize">{user.role}</span>
+                      </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-900">{user.email}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-900">
                         {user.role === "doctor" && user.doctor?.department
                           ? user.doctor.department.name
                           : "—"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       {user.role === "doctor" && user.doctor ? (
                         <button
                           onClick={() => handleToggleStatus(user)}
@@ -325,7 +516,7 @@ const UserManagement: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleEditUser(user)}
@@ -361,6 +552,29 @@ const UserManagement: React.FC = () => {
           departments={departments}
         />
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.show}
+        onClose={() => setConfirmDialog({ show: false, type: null, user: null })}
+        onConfirm={confirmDialog.type === 'delete' ? confirmDelete : confirmApprove}
+        title={confirmDialog.type === 'delete' ? 'Delete User' : 'Approve Registration'}
+        message={
+          confirmDialog.type === 'delete'
+            ? `Are you sure you want to delete ${confirmDialog.user?.name}? This action cannot be undone.`
+            : `Approve registration for ${confirmDialog.user?.name}?`
+        }
+        confirmText={confirmDialog.type === 'delete' ? 'Delete' : 'Approve'}
+        type={confirmDialog.type === 'delete' ? 'danger' : 'info'}
+      />
+
+      {/* Alert Dialog */}
+      <AlertDialog
+        isOpen={alertDialog.show}
+        onClose={() => setAlertDialog({ show: false, type: 'info', message: '' })}
+        type={alertDialog.type}
+        message={alertDialog.message}
+      />
     </div>
   );
 };

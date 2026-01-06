@@ -220,19 +220,19 @@ const AuditLogs: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       User
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Action
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Description
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Model
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date & Time
                     </th>
                   </tr>
@@ -240,7 +240,7 @@ const AuditLogs: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {logs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center">
                           <UserIcon className="h-8 w-8 text-gray-400 mr-2" />
                           <div>
@@ -261,7 +261,7 @@ const AuditLogs: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span
                           className={`px-2 py-1 text-xs rounded-full font-medium ${getActionBadgeColor(
                             log.action
@@ -270,7 +270,7 @@ const AuditLogs: React.FC = () => {
                           {log.action}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-center">
                         <div className="text-sm text-gray-900 max-w-md">
                           {log.description}
                         </div>
@@ -283,7 +283,7 @@ const AuditLogs: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {log.model_type || "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center text-sm text-gray-900">
                           <ClockIcon className="h-4 w-4 mr-1 text-gray-400" />
                           {new Date(log.created_at).toLocaleString()}

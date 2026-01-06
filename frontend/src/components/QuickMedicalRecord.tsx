@@ -34,7 +34,10 @@ const QuickMedicalRecord: React.FC<QuickMedicalRecordProps> = ({
     const fetchDoctors = async () => {
       try {
         const response = await doctorsApi.getAll();
-        const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+        // Handle both array and paginated response
+        const data: Doctor[] = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data as any)?.data || [];
         setDoctors(data);
       } catch (error) {
         console.error("Error fetching doctors:", error);
@@ -228,11 +231,11 @@ const QuickMedicalRecord: React.FC<QuickMedicalRecordProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Medical Record PDF *
             </label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-blue-400 transition-colors">
+            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-2xl hover:border-blue-400 transition-colors">
               <div className="space-y-1 text-center">
                 <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="flex text-sm text-gray-600">
-                  <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
+                  <label className="relative cursor-pointer bg-white rounded-2xl font-medium text-blue-600 hover:text-blue-500">
                     <span>Upload PDF file</span>
                     <input
                       type="file"

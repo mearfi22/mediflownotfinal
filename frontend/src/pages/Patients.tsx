@@ -3,6 +3,7 @@ import { patientsApi, queueApi } from "../services/api";
 import { Patient, Doctor } from "../types";
 import PatientModal from "../components/PatientModal";
 import PatientMedicalHistory from "../components/PatientMedicalHistory";
+import ConfirmDialog from "../components/ConfirmDialog";
 import {
   PlusIcon,
   PencilIcon,
@@ -24,6 +25,7 @@ const Patients: React.FC = () => {
   const [viewingPatient, setViewingPatient] = useState<Patient | null>(null);
   const [medicalHistoryPatient, setMedicalHistoryPatient] = useState<Patient | null>(null);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; patientId: number | null }>({ show: false, patientId: null });
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,14 +82,18 @@ const Patients: React.FC = () => {
     setViewingPatient(patient);
   };
 
-  const handleDeletePatient = async (patientId: number) => {
-    if (!confirm("Are you sure you want to delete this patient?")) return;
+  const handleDeletePatient = (patientId: number) => {
+    setDeleteConfirm({ show: true, patientId });
+  };
 
-    try {
-      await patientsApi.delete(patientId);
-      fetchPatients();
-    } catch (err: any) {
-      alert("Failed to delete patient");
+  const confirmDelete = async () => {
+    if (deleteConfirm.patientId) {
+      try {
+        await patientsApi.delete(deleteConfirm.patientId);
+        fetchPatients();
+      } catch (err: any) {
+        alert("Failed to delete patient");
+      }
     }
   };
 
@@ -180,7 +186,6 @@ const Patients: React.FC = () => {
           onClick={handleAddPatient}
           className="btn btn-primary flex items-center min-h-[48px] px-6 w-full sm:w-auto justify-center"
         >
-          <PlusIcon className="w-5 h-5 mr-2" />
           Add Patient
         </button>
       </div>
@@ -199,7 +204,7 @@ const Patients: React.FC = () => {
                 placeholder="Search by name, contact, PhilHealth ID, or reason..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-base"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-2xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-base"
               />
             </div>
 
@@ -230,7 +235,7 @@ const Patients: React.FC = () => {
 
           {/* Filter Options */}
           {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-2xl">
               {/* Gender Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -239,7 +244,7 @@ const Patients: React.FC = () => {
                 <select
                   value={genderFilter}
                   onChange={(e) => setGenderFilter(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  className="w-full p-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                 >
                   <option value="">All Genders</option>
                   <option value="male">Male</option>
@@ -256,7 +261,7 @@ const Patients: React.FC = () => {
                 <select
                   value={ageRangeFilter}
                   onChange={(e) => setAgeRangeFilter(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  className="w-full p-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                 >
                   <option value="">All Ages</option>
                   <option value="0-18">0-18 years</option>
@@ -274,7 +279,7 @@ const Patients: React.FC = () => {
                 <select
                   value={doctorFilter}
                   onChange={(e) => setDoctorFilter(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  className="w-full p-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                 >
                   <option value="">All Doctors</option>
                   {doctors.map((doctor) => (
@@ -335,13 +340,13 @@ const Patients: React.FC = () => {
                 {filteredPatients.map((patient) => (
                   <div
                     key={patient.id}
-                    className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                    className="bg-gray-50 rounded-2xl p-4 border border-gray-200"
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-primary text-white">
-                            {patient.patient_uid ? patient.patient_uid.substring(0, 8).toUpperCase() : 'N/A'}
+                            {patient.patient_uid ? `RMPH-${patient.patient_uid.substring(0, 8).toUpperCase()}` : 'N/A'}
                           </span>
                           <span className="text-xs text-gray-500">#{patient.id}</span>
                         </div>
@@ -426,29 +431,30 @@ const Patients: React.FC = () => {
             </div>
 
             {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
+            <div className="hidden lg:block overflow-visible">
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Patient ID
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Age/Sex
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Contact
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Department
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Reason
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -456,15 +462,15 @@ const Patients: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredPatients.map((patient) => (
                     <tr key={patient.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm font-mono font-semibold text-primary">
-                          {patient.patient_uid ? patient.patient_uid.substring(0, 8).toUpperCase() : 'N/A'}
+                          {patient.patient_uid ? `RMPH-${patient.patient_uid.substring(0, 8).toUpperCase()}` : 'N/A'}
                         </div>
                         <div className="text-xs text-gray-500">
                           #{patient.id}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {patient.full_name}
@@ -474,17 +480,17 @@ const Patients: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-900">
                           {patient.age}/{patient.gender.charAt(0).toUpperCase()}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-900">
                           {patient.contact_number}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-900">
                           {patient.department?.name || "N/A"}
                         </div>
@@ -494,45 +500,45 @@ const Patients: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-center">
                         <div className="text-sm text-gray-900 max-w-xs truncate">
                           {patient.reason_for_visit || "N/A"}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex space-x-2">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                        <div className="flex space-x-2 justify-end">
                           <button
                             onClick={() => setMedicalHistoryPatient(patient)}
-                            className="text-green-600 hover:text-green-900 relative"
+                            className="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-2xl transition-colors relative"
                             title="Medical History"
                           >
-                            <DocumentTextIcon className="w-4 h-4" />
+                            <DocumentTextIcon className="w-5 h-5" />
                             {patient.medical_records_count > 0 && (
-                              <span className="absolute -top-2 -right-2 bg-green-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px]">
+                              <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px] font-bold">
                                 {patient.medical_records_count}
                               </span>
                             )}
                           </button>
                           <button
                             onClick={() => handleViewPatient(patient)}
-                            className="text-primary hover:text-primary-dark"
+                            className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-2xl transition-colors"
                             title="View Details"
                           >
-                            <EyeIcon className="w-4 h-4" />
+                            <EyeIcon className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handleEditPatient(patient)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="p-2 text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50 rounded-2xl transition-colors"
                             title="Edit"
                           >
-                            <PencilIcon className="w-4 h-4" />
+                            <PencilIcon className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handleDeletePatient(patient.id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-2xl transition-colors"
                             title="Delete"
                           >
-                            <TrashIcon className="w-4 h-4" />
+                            <TrashIcon className="w-5 h-5" />
                           </button>
                         </div>
                       </td>
@@ -540,6 +546,7 @@ const Patients: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}
@@ -582,7 +589,7 @@ const Patients: React.FC = () => {
       {/* View Patient Modal */}
       {viewingPatient && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center pt-4 sm:pt-10 px-4">
-          <div className="relative p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+          <div className="relative p-5 border w-full max-w-4xl shadow-lg rounded-2xl bg-white max-h-[90vh] overflow-y-auto">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -761,6 +768,17 @@ const Patients: React.FC = () => {
           onClose={() => setMedicalHistoryPatient(null)}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.show}
+        onClose={() => setDeleteConfirm({ show: false, patientId: null })}
+        onConfirm={confirmDelete}
+        title="Delete Patient"
+        message="Are you sure you want to delete this patient? This action cannot be undone."
+        confirmText="Delete"
+        type="danger"
+      />
     </div>
   );
 };

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\PreRegistration;
 use App\Models\Patient;
 use App\Models\Queue;
+use App\Models\Notification;
+use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +15,8 @@ use Carbon\Carbon;
 
 class PreRegistrationController extends Controller
 {
+    use LogsActivity;
+
     /**
      * Display a listing of the resource.
      */
@@ -53,6 +57,18 @@ class PreRegistrationController extends Controller
         ]);
 
         $preRegistration = PreRegistration::create($validated);
+
+        // Create notification for admins
+        Notification::create([
+            'type' => 'pre_registration',
+            'title' => 'New Pre-Registration',
+            'message' => "New pre-registration from {$validated['first_name']} {$validated['last_name']}",
+            'data' => [
+                'pre_registration_id' => $preRegistration->id,
+                'patient_name' => "{$validated['first_name']} {$validated['last_name']}",
+            ],
+            'user_id' => null, // Null means visible to all admins
+        ]);
 
         return response()->json([
             'message' => 'Pre-registration submitted successfully. Please wait for approval.',
@@ -140,6 +156,20 @@ class PreRegistrationController extends Controller
             'approved_at' => now(),
         ]);
 
+        // Log the approval action
+        self::logActivity(
+            'approved',
+            'PreRegistration',
+            $preRegistration->id,
+            "Approved pre-registration for {$preRegistration->first_name} {$preRegistration->last_name} - Created patient {$patient->unique_id}",
+            [
+                'pre_registration_id' => $preRegistration->id,
+                'patient_id' => $patient->id,
+                'patient_unique_id' => $patient->unique_id,
+                'queue_id' => $queue->id
+            ]
+        );
+
         return response()->json([
             'message' => 'Pre-registration approved successfully',
             'patient' => $patient,
@@ -148,7 +178,16 @@ class PreRegistrationController extends Controller
     }
 
     /**
-     * Reject pre-registration
+     * R// Log the rejection action
+        self::logActivity(
+            'rejected',
+            'PreRegistration',
+            $preRegistration->id,
+            "Rejected pre-registration for {$preRegistration->first_name} {$preRegistration->last_name}",
+            ['pre_registration_id' => $preRegistration->id]
+        );
+
+        eject pre-registration
      */
     public function reject(Request $request, PreRegistration $preRegistration): JsonResponse
     {

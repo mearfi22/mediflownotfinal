@@ -171,7 +171,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center pt-4 sm:pt-10 px-4">
-      <div className="relative p-4 sm:p-5 border w-full max-w-6xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+      <div className="relative p-4 sm:p-5 border w-full max-w-6xl shadow-lg rounded-2xl bg-white max-h-[90vh] overflow-y-auto">
         <div className="mt-3">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">

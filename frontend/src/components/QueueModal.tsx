@@ -267,14 +267,14 @@ const QueueModal: React.FC<QueueModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary order-2 sm:order-1"
+              className="btn btn-secondary order-2 sm:order-1"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn-primary order-1 sm:order-2"
+              className="btn btn-primary order-1 sm:order-2"
               disabled={loading}
             >
               {loading ? (

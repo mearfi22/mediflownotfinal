@@ -63,7 +63,7 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({
           <div className="absolute top-0 right-0 pt-4 pr-4">
             <button
               onClick={() => onClose(false)}
-              className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
+              className="bg-white rounded-2xl text-gray-400 hover:text-gray-500 focus:outline-none"
             >
               <XMarkIcon className="h-6 w-6" />
             </button>

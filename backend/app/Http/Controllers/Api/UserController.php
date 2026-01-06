@@ -33,7 +33,7 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->with('doctor')->orderBy('created_at', 'desc')->paginate(15);
+        $users = $query->with('doctor.department')->orderBy('created_at', 'desc')->paginate(15);
 
         return response()->json($users);
     }
@@ -150,21 +150,26 @@ class UserController extends Controller
 
         DB::beginTransaction();
         try {
-            // Update user account
+            // Prepare update data
+            $updateData = [];
+
             if (isset($validated['name'])) {
-                $user->name = $validated['name'];
+                $updateData['name'] = $validated['name'];
             }
             if (isset($validated['email'])) {
-                $user->email = $validated['email'];
+                $updateData['email'] = $validated['email'];
             }
             if (isset($validated['password'])) {
-                $user->password = Hash::make($validated['password']);
+                $updateData['password'] = Hash::make($validated['password']);
             }
             if (isset($validated['role'])) {
-                $user->role = $validated['role'];
+                $updateData['role'] = $validated['role'];
             }
 
-            $user->save();
+            // Update user account using update() method to trigger observer
+            if (!empty($updateData)) {
+                $user->update($updateData);
+            }
 
             // Update doctor profile if exists
             if ($user->role === 'doctor' && $user->doctor && isset($validated['doctor_profile'])) {
@@ -195,7 +200,7 @@ class UserController extends Controller
     public function destroy(User $user)
     {
         // Prevent deleting your own account
-        if ($user->id === auth()->id()) {
+        if ($user->id === auth()->user()?->id) {
             return response()->json([
                 'message' => 'You cannot delete your own account'
             ], 403);
@@ -253,5 +258,151 @@ class UserController extends Controller
         return response()->json([
             'message' => 'Status toggle is only available for doctors'
         ], 400);
+    }
+
+    /**
+     * Approve pending user registration
+     */
+    public function approveUser(User $user)
+    {
+        if ($user->status !== 'pending') {
+            return response()->json([
+                'message' => 'User is not in pending status'
+            ], 400);
+        }
+
+        $user->update(['status' => 'active']);
+
+        // Log approval
+        \App\Traits\LogsActivity::logActivity(
+            'approved_registration',
+            'User',
+            $user->id,
+            "Approved registration for {$user->role}: {$user->name}",
+            ['approved_user_id' => $user->id]
+        );
+
+        return response()->json([
+            'message' => 'User registration approved successfully',
+            'user' => $user->load('doctor.department')
+        ]);
+    }
+
+    /**
+     * Reject pending user registration
+     */
+    public function rejectUser(Request $request, User $user)
+    {
+        if ($user->status !== 'pending') {
+            return response()->json([
+                'message' => 'User is not in pending status'
+            ], 400);
+        }
+
+        $reason = $request->input('reason', 'No reason provided');
+
+        $user->update(['status' => 'rejected']);
+
+        // Log rejection
+        \App\Traits\LogsActivity::logActivity(
+            'rejected_registration',
+            'User',
+            $user->id,
+            "Rejected registration for {$user->role}: {$user->name} - Reason: {$reason}",
+            ['rejected_user_id' => $user->id, 'reason' => $reason]
+        );
+
+        return response()->json([
+            'message' => 'User registration rejected successfully'
+        ]);
+    }
+
+    /**
+     * Get pending user registrations
+     */
+    public function getPendingUsers()
+    {
+        $pendingUsers = User::with('doctor.department')
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($pendingUsers);
+    }
+
+    /**
+     * Update authenticated user's profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'email' => [
+                'sometimes',
+                'email',
+                Rule::unique('users')->ignore($user->id)
+            ],
+            'password' => 'sometimes|nullable|min:6',
+            'doctor_profile' => 'sometimes|array',
+            'doctor_profile.full_name' => 'sometimes|string|max:255',
+            'doctor_profile.email' => 'sometimes|nullable|email',
+            'doctor_profile.phone' => 'sometimes|nullable|string',
+            'doctor_profile.department_id' => 'sometimes|exists:departments,id',
+            'doctor_profile.avg_consultation_minutes' => 'sometimes|integer|min:1',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Update user basic info
+            if (isset($validated['name'])) {
+                $user->name = $validated['name'];
+            }
+            if (isset($validated['email'])) {
+                $user->email = $validated['email'];
+            }
+            if (isset($validated['password']) && !empty($validated['password'])) {
+                $user->password = Hash::make($validated['password']);
+            }
+            $user->save();
+
+            // Update doctor profile if user is a doctor
+            if ($user->role === 'doctor' && isset($validated['doctor_profile']) && $user->doctor_id) {
+                $doctor = Doctor::find($user->doctor_id);
+                if ($doctor) {
+                    $doctorData = $validated['doctor_profile'];
+                    if (isset($doctorData['full_name'])) {
+                        $doctor->full_name = $doctorData['full_name'];
+                    }
+                    if (isset($doctorData['email'])) {
+                        $doctor->email = $doctorData['email'];
+                    }
+                    if (isset($doctorData['phone'])) {
+                        $doctor->phone = $doctorData['phone'];
+                    }
+                    if (isset($doctorData['department_id'])) {
+                        $doctor->department_id = $doctorData['department_id'];
+                    }
+                    if (isset($doctorData['avg_consultation_minutes'])) {
+                        $doctor->avg_consultation_minutes = $doctorData['avg_consultation_minutes'];
+                    }
+                    $doctor->save();
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Profile updated successfully',
+                'user' => $user->load('doctor.department')
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to update profile',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -104,6 +104,28 @@ class PatientController extends Controller
      */
     public function destroy(Patient $patient): JsonResponse
     {
+        // Check if patient has medical records
+        $medicalRecordsCount = $patient->medicalRecords()->count();
+
+        if ($medicalRecordsCount > 0) {
+            return response()->json([
+                'message' => 'Cannot delete patient with existing medical records. Medical records must be preserved for legal and medical history purposes.',
+                'medical_records_count' => $medicalRecordsCount
+            ], 422);
+        }
+
+        // Check if patient has active queue entries
+        $activeQueueCount = $patient->queueEntries()
+            ->whereIn('status', ['waiting', 'attending'])
+            ->count();
+
+        if ($activeQueueCount > 0) {
+            return response()->json([
+                'message' => 'Cannot delete patient with active queue entries. Please complete or cancel their queue entries first.',
+                'active_queue_count' => $activeQueueCount
+            ], 422);
+        }
+
         $patient->delete();
 
         return response()->json(['message' => 'Patient deleted successfully']);

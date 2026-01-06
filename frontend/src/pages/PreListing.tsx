@@ -148,7 +148,7 @@ const PreListing: React.FC = () => {
             </div>
             <button
               onClick={() => setSubmitted(false)}
-              className="btn-primary w-full"
+              className="btn btn-primary w-full"
             >
               Submit Another Registration
             </button>
@@ -159,20 +159,29 @@ const PreListing: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-2xl">R</span>
+          <div className="flex justify-center mb-4">
+            <div className="w-20 h-20 bg-red-700 rounded-full flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-3xl">M</span>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Patient Pre-registration
-          </h2>
-          <p className="text-gray-600">Roxas Memorial Provincial Hospital</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Please fill out all required fields marked with *
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+            Roxas Memorial <span className="text-blue-700">Provincial Hospital</span>
+          </h1>
+          <p className="text-gray-600 text-lg">Healthcare Excellence Through Innovation</p>
+          <div className="mt-4 inline-block bg-blue-100 border border-blue-200 rounded-lg px-4 py-2">
+            <h2 className="text-xl font-semibold text-blue-900">Patient Pre-registration</h2>
+          </div>
+          <p className="text-sm text-gray-500 mt-4">
+            Please fill out all required fields marked with <span className="text-red-600">*</span>
           </p>
         </div>
+
+        {/* Main Form Card */}
+        <div className="bg-white rounded-xl shadow-xl p-6 sm:p-8">
 
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -723,7 +732,7 @@ const PreListing: React.FC = () => {
           <div className="pt-6">
             <button
               type="submit"
-              className="btn-primary w-full py-3 text-lg"
+              className="btn btn-primary w-full py-3 text-lg"
               disabled={loading}
             >
               {loading ? (
@@ -745,6 +754,7 @@ const PreListing: React.FC = () => {
             <strong>info@Mediqueue.ph</strong>
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

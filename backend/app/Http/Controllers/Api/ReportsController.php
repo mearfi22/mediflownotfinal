@@ -40,13 +40,13 @@ class ReportsController extends Controller
             // Today's statistics
             'today_stats' => [
                 'queue_served' => Queue::where('queue_date', Carbon::today())
-                    ->where('status', 'served')->count(),
+                    ->where('status', 'attended')->count(),
                 'queue_waiting' => Queue::where('queue_date', Carbon::today())
                     ->where('status', 'waiting')->count(),
-                'queue_serving' => Queue::where('queue_date', Carbon::today())
-                    ->where('status', 'serving')->count(),
-                'queue_skipped' => Queue::where('queue_date', Carbon::today())
-                    ->where('status', 'skipped')->count(),
+                'queue_attending' => Queue::where('queue_date', Carbon::today())
+                    ->where('status', 'attending')->count(),
+                'queue_no_show' => Queue::where('queue_date', Carbon::today())
+                    ->where('status', 'no_show')->count(),
             ]
         ];
 
@@ -117,8 +117,8 @@ class ReportsController extends Controller
             'daily_trends' => Queue::select(
                 DB::raw('DATE(queue_date) as date'),
                 DB::raw('count(*) as total'),
-                DB::raw('SUM(CASE WHEN status = "served" THEN 1 ELSE 0 END) as served'),
-                DB::raw('SUM(CASE WHEN status = "skipped" THEN 1 ELSE 0 END) as skipped')
+                DB::raw('SUM(CASE WHEN status = "attended" THEN 1 ELSE 0 END) as attended'),
+                DB::raw('SUM(CASE WHEN status = "no_show" THEN 1 ELSE 0 END) as no_show')
             )
             ->whereBetween('queue_date', [$startDate, $endDate])
             ->groupBy('date')

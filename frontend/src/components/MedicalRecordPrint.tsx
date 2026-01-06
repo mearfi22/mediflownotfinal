@@ -73,19 +73,20 @@ const MedicalRecordPrint: React.FC<MedicalRecordPrintProps> = ({
           {/* Printable Content */}
           <div className="print-area p-8">
             {/* Hospital Header */}
-            <div className="text-center border-b-2 border-teal-600 pb-6 mb-8">
+            <div className="text-center border-b-4 border-red-600 pb-6 mb-8">
               <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 bg-teal-600 rounded-xl flex items-center justify-center mr-4">
-                  <span className="text-white font-bold text-2xl">R</span>
+                <div className="w-20 h-20 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+                  <span className="text-white font-bold text-4xl">M</span>
                 </div>
                 <div className="text-left">
-                  <h1 className="text-3xl font-bold text-gray-900">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                     Roxas Memorial Provincial Hospital
                   </h1>
-                  <p className="text-lg text-gray-600">Medical Record</p>
+                  <p className="text-xl font-semibold text-blue-600 mt-1">Medical Record</p>
+                  <p className="text-sm text-gray-500 italic">Healthcare Excellence Through Innovation</p>
                 </div>
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-600 font-medium">
                 <p>Roxas City, Capiz, Philippines</p>
                 <p>Tel: (036) 621-0951 | Email: info@rmph.gov.ph</p>
               </div>
@@ -93,61 +94,61 @@ const MedicalRecordPrint: React.FC<MedicalRecordPrintProps> = ({
 
             {/* Patient Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div className="space-y-4">
-                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">
-                  Patient Information
+              <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl border-2 border-blue-200 shadow-sm">
+                <h2 className="text-2xl font-bold text-blue-900 border-b-2 border-blue-300 pb-3 mb-4 flex items-center">
+                  <span className="mr-2">👤</span> Patient Information
                 </h2>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex">
-                    <span className="font-medium text-gray-700 w-32">
+                    <span className="font-semibold text-gray-700 w-36">
                       Name:
                     </span>
-                    <span className="text-gray-900">{patient.full_name}</span>
+                    <span className="text-gray-900 font-medium">{patient.full_name}</span>
                   </div>
                   <div className="flex">
-                    <span className="font-medium text-gray-700 w-32">Age:</span>
-                    <span className="text-gray-900">
+                    <span className="font-semibold text-gray-700 w-36">Age:</span>
+                    <span className="text-gray-900 font-medium">
                       {patient.age} years old
                     </span>
                   </div>
                   <div className="flex">
-                    <span className="font-medium text-gray-700 w-32">
+                    <span className="font-semibold text-gray-700 w-36">
                       Gender:
                     </span>
-                    <span className="text-gray-900 capitalize">
+                    <span className="text-gray-900 font-medium capitalize">
                       {patient.gender}
                     </span>
                   </div>
                   <div className="flex">
-                    <span className="font-medium text-gray-700 w-32">
+                    <span className="font-semibold text-gray-700 w-36">
                       Date of Birth:
                     </span>
-                    <span className="text-gray-900">
+                    <span className="text-gray-900 font-medium">
                       {formatDate(patient.date_of_birth)}
                     </span>
                   </div>
                   <div className="flex">
-                    <span className="font-medium text-gray-700 w-32">
+                    <span className="font-semibold text-gray-700 w-36">
                       Contact:
                     </span>
-                    <span className="text-gray-900">
+                    <span className="text-gray-900 font-medium">
                       {patient.contact_number}
                     </span>
                   </div>
                   <div className="flex">
-                    <span className="font-medium text-gray-700 w-32">
+                    <span className="font-semibold text-gray-700 w-36">
                       Civil Status:
                     </span>
-                    <span className="text-gray-900">
+                    <span className="text-gray-900 font-medium">
                       {patient.civil_status}
                     </span>
                   </div>
                   {patient.philhealth_id && (
                     <div className="flex">
-                      <span className="font-medium text-gray-700 w-32">
+                      <span className="font-semibold text-gray-700 w-36">
                         PhilHealth ID:
                       </span>
-                      <span className="text-gray-900">
+                      <span className="text-gray-900 font-medium">
                         {patient.philhealth_id}
                       </span>
                     </div>
@@ -155,31 +156,31 @@ const MedicalRecordPrint: React.FC<MedicalRecordPrintProps> = ({
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2">
-                  Visit Details
+              <div className="bg-gradient-to-br from-green-50 to-white p-6 rounded-2xl border-2 border-green-200 shadow-sm">
+                <h2 className="text-2xl font-bold text-green-900 border-b-2 border-green-300 pb-3 mb-4 flex items-center">
+                  <span className="mr-2">📋</span> Visit Details
                 </h2>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex">
-                    <span className="font-medium text-gray-700 w-32">
+                    <span className="font-semibold text-gray-700 w-36">
                       Visit Date:
                     </span>
-                    <span className="text-gray-900">
+                    <span className="text-gray-900 font-medium">
                       {formatDate(record.visit_date)}
                     </span>
                   </div>
                   <div className="flex">
-                    <span className="font-medium text-gray-700 w-32">
+                    <span className="font-semibold text-gray-700 w-36">
                       Doctor:
                     </span>
-                    <span className="text-gray-900">{record.doctor_name}</span>
+                    <span className="text-gray-900 font-medium">{record.doctor_name}</span>
                   </div>
                   <div className="flex">
-                    <span className="font-medium text-gray-700 w-32">
+                    <span className="font-semibold text-gray-700 w-36">
                       Record ID:
                     </span>
-                    <span className="text-gray-900">
-                      #{record.id.toString().padStart(6, "0")}
+                    <span className="text-blue-600 font-bold text-lg">
+                      RMPH-{record.id.toString().padStart(6, "0")}
                     </span>
                   </div>
                 </div>
@@ -187,34 +188,34 @@ const MedicalRecordPrint: React.FC<MedicalRecordPrintProps> = ({
             </div>
 
             {/* Address */}
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2 mb-4">
-                Address
+            <div className="mb-8 bg-gradient-to-br from-purple-50 to-white p-6 rounded-2xl border-2 border-purple-200 shadow-sm">
+              <h2 className="text-2xl font-bold text-purple-900 border-b-2 border-purple-300 pb-3 mb-4 flex items-center">
+                <span className="mr-2">📍</span> Address
               </h2>
-              <p className="text-gray-900">{patient.address}</p>
+              <p className="text-gray-900 font-medium">{patient.address}</p>
             </div>
 
             {/* Medical Details */}
             <div className="space-y-6">
               {/* Diagnosis */}
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2 mb-4">
-                  Diagnosis
+              <div className="bg-gradient-to-br from-red-50 to-white p-6 rounded-2xl border-2 border-red-200 shadow-sm">
+                <h2 className="text-2xl font-bold text-red-900 border-b-2 border-red-300 pb-3 mb-4 flex items-center">
+                  <span className="mr-2">🩺</span> Diagnosis
                 </h2>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-900 whitespace-pre-wrap">
+                <div className="bg-white p-5 rounded-xl border border-red-100">
+                  <p className="text-gray-900 whitespace-pre-wrap leading-relaxed">
                     {record.diagnosis}
                   </p>
                 </div>
               </div>
 
               {/* Treatment */}
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2 mb-4">
-                  Treatment
+              <div className="bg-gradient-to-br from-teal-50 to-white p-6 rounded-2xl border-2 border-teal-200 shadow-sm">
+                <h2 className="text-2xl font-bold text-teal-900 border-b-2 border-teal-300 pb-3 mb-4 flex items-center">
+                  <span className="mr-2">💊</span> Treatment
                 </h2>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-900 whitespace-pre-wrap">
+                <div className="bg-white p-5 rounded-xl border border-teal-100">
+                  <p className="text-gray-900 whitespace-pre-wrap leading-relaxed">
                     {record.treatment}
                   </p>
                 </div>
@@ -222,12 +223,12 @@ const MedicalRecordPrint: React.FC<MedicalRecordPrintProps> = ({
 
               {/* Additional Notes */}
               {record.notes && (
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 border-b border-gray-300 pb-2 mb-4">
-                    Additional Notes
+                <div className="bg-gradient-to-br from-yellow-50 to-white p-6 rounded-2xl border-2 border-yellow-200 shadow-sm">
+                  <h2 className="text-2xl font-bold text-yellow-900 border-b-2 border-yellow-300 pb-3 mb-4 flex items-center">
+                    <span className="mr-2">📝</span> Additional Notes
                   </h2>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-gray-900 whitespace-pre-wrap">
+                  <div className="bg-white p-5 rounded-xl border border-yellow-100">
+                    <p className="text-gray-900 whitespace-pre-wrap leading-relaxed">
                       {record.notes}
                     </p>
                   </div>
@@ -236,32 +237,30 @@ const MedicalRecordPrint: React.FC<MedicalRecordPrintProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="mt-12 pt-8 border-t border-gray-300">
+            <div className="mt-12 pt-8 border-t-2 border-gray-300">
               <div className="flex justify-between items-end">
-                <div className="text-sm text-gray-500">
-                  <p>Generated on: {formatDate(new Date().toISOString())}</p>
-                  <p>Record Created: {formatDate(record.created_at)}</p>
+                <div className="text-sm text-gray-600">
+                  <p className="font-semibold">Generated on: <span className="font-normal">{formatDate(new Date().toISOString())}</span></p>
+                  <p className="font-semibold">Record Created: <span className="font-normal">{formatDate(record.created_at)}</span></p>
                 </div>
                 <div className="text-center">
-                  <div className="border-t-2 border-gray-400 w-64 pt-2">
-                    <p className="text-sm font-medium text-gray-700">
+                  <div className="border-t-2 border-gray-600 w-64 pt-2">
+                    <p className="text-sm font-bold text-gray-800">
                       Doctor's Signature
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-base font-semibold text-blue-600 mt-1">
                       {record.doctor_name}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-8 text-center text-xs text-gray-400">
-                <p>
-                  This is a computer-generated medical record from Roxas
-                  Memorial Provincial Hospital
+              <div className="mt-8 text-center text-xs text-gray-500 bg-gray-50 p-4 rounded-lg">
+                <p className="font-semibold">
+                  This is a computer-generated medical record from Roxas Memorial Provincial Hospital
                 </p>
-                <p>
-                  For verification, please contact the hospital at (036)
-                  621-0951
+                <p className="mt-1">
+                  For verification, please contact the hospital at (036) 621-0951
                 </p>
               </div>
             </div>

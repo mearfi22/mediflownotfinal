@@ -37,9 +37,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Unauthorized - token expired or invalid
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/login";
+    } else if (error.response?.status === 500) {
+      // Server error - log for debugging but don't auto-redirect
+      console.error("Server error:", error.response?.data);
     }
     return Promise.reject(error);
   }
@@ -155,6 +159,10 @@ export const usersApi = {
   getStaff: () => api.get<User[]>("/staff-list"),
   getDoctorUsers: () => api.get<User[]>("/doctor-users"),
   toggleStatus: (id: number) => api.post(`/users/${id}/toggle-status`),
+  getPending: () => api.get<User[]>("/users-pending"),
+  approve: (id: number) => api.post(`/users/${id}/approve`),
+  reject: (id: number, reason?: string) => api.post(`/users/${id}/reject`, { reason }),
+  updateProfile: (data: any) => api.put("/profile", data),
 };
 
 // Pre-registration API
@@ -219,6 +227,15 @@ export const auditLogsApi = {
 // System Analytics API
 export const systemAnalyticsApi = {
   getDashboard: (params?: any) => api.get("/system-analytics/dashboard", { params }),
+};
+
+// Notifications API
+export const notificationsApi = {
+  getAll: () => api.get("/notifications"),
+  getUnreadCount: () => api.get("/notifications/unread-count"),
+  markAsRead: (id: number) => api.post(`/notifications/${id}/mark-read`),
+  markAllAsRead: () => api.post("/notifications/mark-all-read"),
+  delete: (id: number) => api.delete(`/notifications/${id}`),
 };
 
 // Export api object for direct use

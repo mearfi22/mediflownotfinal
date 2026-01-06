@@ -8,20 +8,25 @@ import {
   CheckIcon,
   XMarkIcon,
   PrinterIcon,
+  ArrowsRightLeftIcon,
 } from "@heroicons/react/24/outline";
 import QueueModal from "../components/QueueModal";
 import QueueTicketPrint from "../components/QueueTicketPrint";
+import TransferModal from "../components/TransferModal";
+import TransferHistoryModal from "../components/TransferHistoryModal";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const QueuePage: React.FC = () => {
   const [queue, setQueue] = useState<Queue[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; queueItem: Queue | null }>({ show: false, queueItem: null });
   const [departments, setDepartments] = useState<Department[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [statistics, setStatistics] = useState({
     total_patients_today: 0,
     now_serving: undefined as Queue | undefined,
     served: 0,
-    skipped: 0,
+    no_show: 0,
     waiting: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -30,6 +35,11 @@ const QueuePage: React.FC = () => {
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [printQueue, setPrintQueue] = useState<Queue | null>(null);
+  const [transferQueue, setTransferQueue] = useState<Queue | null>(null);
+  const [transferDoctors, setTransferDoctors] = useState<Doctor[]>([]);
+  const [transferHistory, setTransferHistory] = useState<any[]>([]);
+  const [showTransferHistory, setShowTransferHistory] = useState(false);
+  const [selectedQueueForHistory, setSelectedQueueForHistory] = useState<Queue | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -99,21 +109,77 @@ const QueuePage: React.FC = () => {
     }
   };
 
-  const handleDeleteFromQueue = async (queueItem: Queue) => {
-    if (
-      window.confirm(
-        `Are you sure you want to remove ${queueItem.patient?.full_name} from the queue?`
-      )
-    ) {
+  const handleDeleteFromQueue = (queueItem: Queue) => {
+    setDeleteConfirm({ show: true, queueItem });
+  };
+
+  const confirmDeleteFromQueue = async () => {
+    if (deleteConfirm.queueItem) {
       try {
-        await queueApi.delete(queueItem.id);
-        setQueue(queue.filter((item) => item.id !== queueItem.id));
+        await queueApi.delete(deleteConfirm.queueItem.id);
+        setQueue(queue.filter((item) => item.id !== deleteConfirm.queueItem!.id));
         // Refresh statistics
         const stats = await queueApi.getStatistics(selectedDate);
         setStatistics(stats.data);
       } catch (error) {
         console.error("Error deleting from queue:", error);
       }
+    }
+  };
+
+  const handleOpenTransferModal = async (queueItem: Queue) => {
+    setTransferQueue(queueItem);
+    // Fetch doctors for the current department
+    if (queueItem.department_id) {
+      try {
+        const response = await queueApi.getDoctors(queueItem.department_id);
+        setTransferDoctors(response.data);
+      } catch (error) {
+        console.error("Error fetching doctors:", error);
+      }
+    }
+  };
+
+  const handleTransferDepartmentChange = async (departmentId: number) => {
+    try {
+      const response = await queueApi.getDoctors(departmentId);
+      setTransferDoctors(response.data);
+    } catch (error) {
+      console.error("Error fetching doctors:", error);
+    }
+  };
+
+  const handleTransfer = async (data: {
+    to_doctor_id?: number;
+    to_department_id?: number;
+    reason?: string;
+  }) => {
+    if (!transferQueue) return;
+
+    try {
+      const response = await queueApi.transfer(transferQueue.id, data);
+      // Update the queue list with the transferred queue
+      setQueue(queue.map((item) => 
+        item.id === transferQueue.id ? response.data.queue : item
+      ));
+      // Refresh statistics
+      const stats = await queueApi.getStatistics(selectedDate);
+      setStatistics(stats.data);
+      setTransferQueue(null);
+    } catch (error) {
+      console.error("Error transferring queue:", error);
+      throw error;
+    }
+  };
+
+  const handleViewTransferHistory = async (queueItem: Queue) => {
+    try {
+      const response = await queueApi.getTransferHistory(queueItem.id);
+      setTransferHistory(response.data);
+      setSelectedQueueForHistory(queueItem);
+      setShowTransferHistory(true);
+    } catch (error) {
+      console.error("Error fetching transfer history:", error);
     }
   };
 
@@ -125,7 +191,7 @@ const QueuePage: React.FC = () => {
         return "bg-blue-100 text-blue-800";
       case "attended":
         return "bg-green-100 text-green-800";
-      case "skipped":
+      case "no_show":
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -182,9 +248,8 @@ const QueuePage: React.FC = () => {
           />
           <button
             onClick={handleAddToQueue}
-            className="btn-primary flex items-center justify-center space-x-2"
+            className="btn btn-primary flex items-center justify-center space-x-2"
           >
-            <PlusIcon className="h-5 w-5" />
             <span>Add to Queue</span>
           </button>
         </div>
@@ -281,15 +346,30 @@ const QueuePage: React.FC = () => {
         ) : (
           <>
             {/* Card View - All Devices */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
-              {queue.map((queueItem) => (
-                <div
-                  key={queueItem.id}
-                  className="bg-white rounded-lg p-6 border-2 border-gray-200 hover:border-blue-300 transition-all shadow-sm"
-                >
+            {queue.filter(q => q.status !== 'attended').length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-gray-500 text-lg">No active patients in queue. All patients have been attended.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+                {queue.filter(q => q.status !== 'attended').map((queueItem) => (
+                  <div
+                    key={queueItem.id}
+                    className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-blue-300 transition-all shadow-sm relative"
+                  >
+                  {/* History Button - Top Right */}
+                  <button
+                    onClick={() => handleViewTransferHistory(queueItem)}
+                    className="absolute top-4 right-4 inline-flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-colors"
+                    title="View Transfer History"
+                  >
+                    <ClockIcon className="h-4 w-4 mr-1" />
+                    History
+                  </button>
+
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center space-x-4">
-                      <div className="bg-blue-100 rounded-lg px-4 py-3">
+                      <div className="bg-blue-100 rounded-2xl px-4 py-3">
                         <div className="text-2xl font-bold text-blue-600">
                           #{queueItem.queue_number}
                         </div>
@@ -311,16 +391,6 @@ const QueuePage: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    {queueItem.estimated_wait_minutes !== null && 
-                     queueItem.estimated_wait_minutes !== undefined && 
-                     queueItem.status === 'waiting' && (
-                      <div className="bg-yellow-50 rounded-lg px-3 py-2 border border-yellow-200">
-                        <div className="text-xs text-yellow-600 font-medium">Est. Wait</div>
-                        <div className="text-lg font-bold text-yellow-700">
-                          {queueItem.estimated_wait_minutes} min
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <div className="space-y-3 mb-4">
@@ -365,11 +435,20 @@ const QueuePage: React.FC = () => {
                   <div className="flex flex-wrap justify-end items-center gap-2 pt-4 border-t">
                     <button
                       onClick={() => setPrintQueue(queueItem)}
-                      className="inline-flex items-center px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                      className="inline-flex items-center px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-2xl hover:bg-purple-200 transition-colors"
                       title="Print Queue Ticket"
                     >
                       <PrinterIcon className="h-4 w-4 mr-1" />
                       Print
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenTransferModal(queueItem)}
+                      className="inline-flex items-center px-3 py-2 text-sm bg-orange-100 text-orange-700 rounded-2xl hover:bg-orange-200 transition-colors"
+                      title="Transfer Queue"
+                    >
+                      <ArrowsRightLeftIcon className="h-4 w-4 mr-1" />
+                      Transfer
                     </button>
 
                     {queueItem.status === "waiting" && (
@@ -377,7 +456,7 @@ const QueuePage: React.FC = () => {
                         onClick={() =>
                           handleStatusChange(queueItem, "attending")
                         }
-                        className="inline-flex items-center px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="inline-flex items-center px-4 py-2 text-sm bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors"
                         title="Start Attending"
                       >
                         <PlayIcon className="h-4 w-4 mr-1" />
@@ -390,41 +469,38 @@ const QueuePage: React.FC = () => {
                           onClick={() =>
                             handleStatusChange(queueItem, "attended")
                           }
-                          className="inline-flex items-center px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                          className="inline-flex items-center px-4 py-2 text-sm bg-green-600 text-white rounded-2xl hover:bg-green-700 transition-colors"
                           title="Mark as Attended"
                         >
-                          <CheckIcon className="h-4 w-4 mr-1" />
                           Mark Attended
                         </button>
                         <button
                           onClick={() =>
-                            handleStatusChange(queueItem, "skipped")
+                            handleStatusChange(queueItem, "no_show")
                           }
-                          className="inline-flex items-center px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                          title="Skip Patient"
+                          className="inline-flex items-center px-3 py-2 text-sm bg-red-100 text-red-700 rounded-2xl hover:bg-red-200 transition-colors"
+                          title="Mark as No Show"
                         >
-                          <XMarkIcon className="h-4 w-4 mr-1" />
-                          Skip
+                          No Show
                         </button>
                       </>
                     )}
                     {queueItem.status === "attended" && queueItem.medical_record_id && (
                       <div className="inline-flex items-center px-3 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                        <CheckIcon className="h-3 w-3 mr-1" />
                         Documented
                       </div>
                     )}
                     <button
                       onClick={() => handleDeleteFromQueue(queueItem)}
-                      className="inline-flex items-center p-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                      className="inline-flex items-center p-2 text-sm text-gray-600 rounded-2xl hover:bg-gray-100 transition-colors"
                       title="Remove from Queue"
                     >
-                      <XMarkIcon className="h-5 w-5" />
-                    </button>
+                      </button>
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -448,6 +524,47 @@ const QueuePage: React.FC = () => {
           onClose={() => setPrintQueue(null)}
         />
       )}
+
+      {/* Transfer Modal */}
+      {transferQueue && (
+        <TransferModal
+          isOpen={true}
+          onClose={() => {
+            setTransferQueue(null);
+            setTransferDoctors([]);
+          }}
+          onTransfer={handleTransfer}
+          queue={transferQueue}
+          departments={departments}
+          doctors={transferDoctors}
+          onDepartmentChange={handleTransferDepartmentChange}
+        />
+      )}
+
+      {/* Transfer History Modal */}
+      {showTransferHistory && selectedQueueForHistory && (
+        <TransferHistoryModal
+          isOpen={showTransferHistory}
+          onClose={() => {
+            setShowTransferHistory(false);
+            setSelectedQueueForHistory(null);
+            setTransferHistory([]);
+          }}
+          transfers={transferHistory}
+          queueNumber={selectedQueueForHistory.queue_number}
+          patientName={selectedQueueForHistory.patient?.full_name || "Unknown"}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.show}
+        onClose={() => setDeleteConfirm({ show: false, queueItem: null })}
+        onConfirm={confirmDeleteFromQueue}
+        title="Remove from Queue"
+        message={`Are you sure you want to remove ${deleteConfirm.queueItem?.patient?.full_name} from the queue?`}
+        confirmText="Remove"
+        type="danger"
+      />
     </div>
   );
 };

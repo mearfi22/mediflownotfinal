@@ -56,18 +56,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Call API logout FIRST while token still exists
+    if (token) {
+      try {
+        await authApi.logout();
+      } catch (error) {
+        // Ignore logout errors but continue clearing local state
+        console.error('Logout API error:', error);
+      }
+    }
+    
+    // Then clear local state
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
-    // Call API logout if token exists
-    if (token) {
-      authApi.logout().catch(() => {
-        // Ignore logout errors
-      });
-    }
   };
 
   const value: AuthContextType = {

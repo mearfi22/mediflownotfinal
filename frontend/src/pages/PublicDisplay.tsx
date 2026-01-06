@@ -77,10 +77,16 @@ const PublicDisplay: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white p-8">
       {/* Header */}
       <div className="text-center mb-12">
-        <h1 className="text-6xl font-bold mb-4">
-          Roxas Memorial Provincial Hospital
+        <div className="flex justify-center mb-4">
+          <div className="w-20 h-20 bg-red-700 rounded-full flex items-center justify-center shadow-lg">
+            <span className="text-white font-bold text-4xl">M</span>
+          </div>
+        </div>
+        <h1 className="text-5xl sm:text-6xl font-bold mb-2">
+          Roxas Memorial <span className="text-blue-300">Provincial Hospital</span>
         </h1>
-        <p className="text-3xl font-semibold opacity-90">Queue Management System</p>
+        <p className="text-xl sm:text-2xl opacity-90 mb-1">Healthcare Excellence Through Innovation</p>
+        <p className="text-2xl sm:text-3xl font-semibold opacity-90 mt-4">Queue Management System</p>
         <div className="mt-6 text-2xl opacity-80">
           <div className="mb-2">{formatDate()}</div>
           <div className="text-4xl font-mono">{formatTime()}</div>

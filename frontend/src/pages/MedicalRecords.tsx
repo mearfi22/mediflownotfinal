@@ -4,6 +4,7 @@ import { medicalRecordsApi, patientsApi } from "../services/api";
 import { MedicalRecord, Patient } from "../types";
 import MedicalRecordModal from "../components/MedicalRecordModal";
 import MedicalRecordPrint from "../components/MedicalRecordPrint";
+import ConfirmDialog from "../components/ConfirmDialog";
 import {
   PlusIcon,
   EyeIcon,
@@ -13,6 +14,8 @@ import {
   PrinterIcon,
   DocumentIcon,
   UserIcon,
+  DocumentArrowDownIcon,
+  DocumentCheckIcon,
 } from "@heroicons/react/24/outline";
 
 const MedicalRecords: React.FC = () => {
@@ -36,11 +39,12 @@ const MedicalRecords: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
     searchParams.get('patient_id') ? Number(searchParams.get('patient_id')) : null
   );
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; record: MedicalRecord | null }>({ show: false, record: null });
 
   useEffect(() => {
     fetchRecords();
     fetchPatients();
-  }, [pagination.current_page, selectedPatientId]);
+  }, [selectedPatientId]); // Removed pagination.current_page to stop auto-refresh
 
   const fetchRecords = async () => {
     try {
@@ -117,12 +121,14 @@ const MedicalRecords: React.FC = () => {
     setShowPrint(true);
   };
 
-  const handleDeleteRecord = async (record: MedicalRecord) => {
-    if (
-      window.confirm("Are you sure you want to delete this medical record?")
-    ) {
+  const handleDeleteRecord = (record: MedicalRecord) => {
+    setDeleteConfirm({ show: true, record });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirm.record) {
       try {
-        await medicalRecordsApi.delete(record.id);
+        await medicalRecordsApi.delete(deleteConfirm.record.id);
         fetchRecords();
       } catch (error) {
         console.error("Error deleting medical record:", error);
@@ -166,7 +172,7 @@ const MedicalRecords: React.FC = () => {
             View and manage patient medical history
           </p>
           {selectedPatientId && (
-            <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-2xl">
               <UserIcon className="h-4 w-4 text-blue-600" />
               <span className="text-sm text-blue-900">
                 Viewing records for: <strong>{getPatientName(selectedPatientId)}</strong>
@@ -185,9 +191,8 @@ const MedicalRecords: React.FC = () => {
         </div>
         <button
           onClick={handleAddRecord}
-          className="btn-primary flex items-center space-x-2"
+          className="btn btn-primary flex items-center min-h-[48px] px-6"
         >
-          <PlusIcon className="h-5 w-5" />
           <span>Add Medical Record</span>
         </button>
       </div>
@@ -243,7 +248,7 @@ const MedicalRecords: React.FC = () => {
       </div>
 
       {/* Medical Records Table */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-visible">
         {loading ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -259,22 +264,25 @@ const MedicalRecords: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Patient
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Last Date Visited
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Last Updated
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Diagnosis
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Doctor
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Document
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -282,7 +290,7 @@ const MedicalRecords: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {records.map((record) => (
                     <tr key={record.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {record.patient?.full_name ||
@@ -290,17 +298,17 @@ const MedicalRecords: React.FC = () => {
                           </div>
                           {record.patient?.patient_uid && (
                             <div className="text-xs text-gray-500 font-mono">
-                              ID: {record.patient.patient_uid.substring(0, 8).toUpperCase()}
+                              ID: RMPH-{record.patient.patient_uid.substring(0, 8).toUpperCase()}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-900">
                           {formatDate(record.visit_date)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-900">
                           {record.updated_at ? formatDate(record.updated_at) : formatDate(record.visit_date)}
                         </div>
@@ -310,45 +318,78 @@ const MedicalRecords: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-center">
                         <div className="text-sm text-gray-900 max-w-xs truncate">
                           {record.diagnosis}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-900">
                           {record.doctor_name}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {record.pdf_file_path ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const response = await medicalRecordsApi.downloadPdf(record.id);
+                                const blob = new Blob([response.data], { type: 'application/pdf' });
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `medical_record_${record.patient?.full_name}_${record.visit_date}.pdf`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(url);
+                              } catch (error) {
+                                console.error('Error downloading PDF:', error);
+                                alert('Failed to download PDF. Please try again.');
+                              }
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-2xl hover:bg-green-200 transition-colors"
+                            title="Download PDF"
+                          >
+                            <DocumentCheckIcon className="h-4 w-4 mr-1.5" />
+                            PDF Available
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1.5 text-sm bg-gray-100 text-gray-500 rounded-2xl">
+                            <DocumentIcon className="h-4 w-4 mr-1.5" />
+                            No PDF
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                        <div className="flex space-x-2 justify-end">
                           <button
                             onClick={() => handleViewRecord(record)}
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-2xl transition-colors"
                             title="View Details"
                           >
-                            <EyeIcon className="h-5 w-5" />
+                            <EyeIcon className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handlePrintRecord(record)}
-                            className="text-purple-600 hover:text-purple-900"
+                            className="p-2 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded-2xl transition-colors"
                             title="Print Record"
                           >
-                            <PrinterIcon className="h-5 w-5" />
+                            <PrinterIcon className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handleEditRecord(record)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="p-2 text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50 rounded-2xl transition-colors"
                             title="Edit Record"
                           >
-                            <PencilIcon className="h-5 w-5" />
+                            <PencilIcon className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteRecord(record)}
-                            className="text-red-600 hover:text-red-900"
+                            className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-2xl transition-colors"
                             title="Delete Record"
                           >
-                            <TrashIcon className="h-5 w-5" />
+                            <TrashIcon className="w-5 h-5" />
                           </button>
                         </div>
                       </td>
@@ -373,7 +414,7 @@ const MedicalRecords: React.FC = () => {
                       }))
                     }
                     disabled={pagination.current_page === 1}
-                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50"
+                    className="px-3 py-1 text-sm border rounded-2xl disabled:opacity-50"
                   >
                     Previous
                   </button>
@@ -388,7 +429,7 @@ const MedicalRecords: React.FC = () => {
                       }))
                     }
                     disabled={pagination.current_page === pagination.last_page}
-                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50"
+                    className="px-3 py-1 text-sm border rounded-2xl disabled:opacity-50"
                   >
                     Next
                   </button>
@@ -423,6 +464,16 @@ const MedicalRecords: React.FC = () => {
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.show}
+        onClose={() => setDeleteConfirm({ show: false, record: null })}
+        onConfirm={confirmDelete}
+        title="Delete Medical Record"
+        message="Are you sure you want to delete this medical record? This action cannot be undone."
+        confirmText="Delete"
+        type="danger"
+      />
     </div>
   );
 };

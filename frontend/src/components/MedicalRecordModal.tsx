@@ -8,7 +8,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { MedicalRecord, Patient, Doctor } from "../types";
 import MedicalRecordPrint from "./MedicalRecordPrint";
-import { doctorsApi } from "../services/api";
+import { doctorsApi, medicalRecordsApi } from "../services/api";
 
 interface MedicalRecordModalProps {
   isOpen: boolean;
@@ -28,6 +28,15 @@ interface FormData {
   notes?: string;
   doctor_name: string;
   pdf_file?: FileList;
+  // Admission fields
+  admission_date?: string;
+  admission_time?: string;
+  ward_room?: string;
+  admitting_remarks?: string;
+  admitting_diagnosis?: string;
+  admitting_rod?: string;
+  consultant_on_deck?: string;
+  er_nurse_on_duty?: string;
 }
 
 const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
@@ -81,6 +90,14 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
           treatment: record.treatment,
           notes: record.notes || "",
           doctor_name: record.doctor_name,
+          admission_date: record.admission_date?.split("T")[0] || "",
+          admission_time: record.admission_time || "",
+          ward_room: record.ward_room || "",
+          admitting_remarks: record.admitting_remarks || "",
+          admitting_diagnosis: record.admitting_diagnosis || "",
+          admitting_rod: record.admitting_rod || "",
+          consultant_on_deck: record.consultant_on_deck || "",
+          er_nurse_on_duty: record.er_nurse_on_duty || "",
         });
       } else {
         reset({
@@ -89,6 +106,14 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
           treatment: "",
           notes: "",
           doctor_name: "",
+          admission_date: "",
+          admission_time: "",
+          ward_room: "",
+          admitting_remarks: "",
+          admitting_diagnosis: "",
+          admitting_rod: "",
+          consultant_on_deck: "",
+          er_nurse_on_duty: "",
         });
       }
     }
@@ -132,6 +157,16 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
       if (selectedFile) {
         formData.append("pdf_file", selectedFile);
       }
+      
+      // Admission fields
+      if (data.admission_date) formData.append("admission_date", data.admission_date);
+      if (data.admission_time) formData.append("admission_time", data.admission_time);
+      if (data.ward_room) formData.append("ward_room", data.ward_room);
+      if (data.admitting_remarks) formData.append("admitting_remarks", data.admitting_remarks);
+      if (data.admitting_diagnosis) formData.append("admitting_diagnosis", data.admitting_diagnosis);
+      if (data.admitting_rod) formData.append("admitting_rod", data.admitting_rod);
+      if (data.consultant_on_deck) formData.append("consultant_on_deck", data.consultant_on_deck);
+      if (data.er_nurse_on_duty) formData.append("er_nurse_on_duty", data.er_nurse_on_duty);
 
       // Always create new record (even when editing - it creates a new visit entry)
       // This builds medical history instead of overwriting
@@ -184,7 +219,7 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
               </h3>
               {isViewMode && currentPatient && (
                 <p className="text-sm text-gray-600 mt-1">
-                  Patient: {currentPatient.full_name} | Record #
+                  Patient: {currentPatient.full_name} | Record RMPH-
                   {record?.id.toString().padStart(6, "0")}
                 </p>
               )}
@@ -355,9 +390,18 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
                           </div>
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => {
-                                const url = `http://localhost:8000/api/medical-records/${record.id}/download-pdf`;
-                                window.open(url, "_blank");
+                              onClick={async () => {
+                                try {
+                                  const response = await medicalRecordsApi.downloadPdf(record.id);
+                                  const blob = new Blob([response.data], { type: 'application/pdf' });
+                                  const url = window.URL.createObjectURL(blob);
+                                  window.open(url, "_blank");
+                                  // Don't revoke URL immediately so it can be opened
+                                  setTimeout(() => window.URL.revokeObjectURL(url), 100);
+                                } catch (error) {
+                                  console.error('Error downloading PDF:', error);
+                                  alert('Failed to download PDF. Please try again.');
+                                }
                               }}
                               className="btn btn-primary flex items-center space-x-2"
                             >
@@ -383,7 +427,7 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
                       {formatDate(record.updated_at)}
                     </p>
                     <p>
-                      <span className="font-medium">Record ID:</span> #
+                      <span className="font-medium">Record ID:</span> RMPH-
                       {record.id.toString().padStart(6, "0")}
                     </p>
                   </div>
@@ -566,6 +610,154 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
                     />
                   </div>
 
+                  {/* Admission Information Section */}
+                  <div className="md:col-span-2 border-t pt-4 mt-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      For Admission (Optional)
+                    </h3>
+                  </div>
+
+                  {/* Admission Date & Time */}
+                  <div>
+                    <label
+                      htmlFor="admission_date"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Date of Admission
+                    </label>
+                    <input
+                      id="admission_date"
+                      type="date"
+                      {...register("admission_date")}
+                      className="input"
+                      readOnly={isViewMode}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="admission_time"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Time of Admission
+                    </label>
+                    <input
+                      id="admission_time"
+                      type="time"
+                      {...register("admission_time")}
+                      className="input"
+                      readOnly={isViewMode}
+                    />
+                  </div>
+
+                  {/* Ward/Room */}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="ward_room"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Ward/Room
+                    </label>
+                    <input
+                      id="ward_room"
+                      type="text"
+                      placeholder="Enter ward or room number"
+                      {...register("ward_room")}
+                      className="input"
+                      readOnly={isViewMode}
+                    />
+                  </div>
+
+                  {/* Admitting Remarks */}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="admitting_remarks"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Admitting Remarks
+                    </label>
+                    <textarea
+                      id="admitting_remarks"
+                      rows={2}
+                      placeholder="Enter admitting remarks"
+                      {...register("admitting_remarks")}
+                      className="input"
+                      readOnly={isViewMode}
+                    />
+                  </div>
+
+                  {/* Admitting Diagnosis */}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="admitting_diagnosis"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Admitting Diagnosis
+                    </label>
+                    <textarea
+                      id="admitting_diagnosis"
+                      rows={2}
+                      placeholder="Enter admitting diagnosis"
+                      {...register("admitting_diagnosis")}
+                      className="input"
+                      readOnly={isViewMode}
+                    />
+                  </div>
+
+                  {/* Admitting ROD (Rule Out Diagnosis) */}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="admitting_rod"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Admitting ROD (Rule Out Diagnosis)
+                    </label>
+                    <textarea
+                      id="admitting_rod"
+                      rows={2}
+                      placeholder="Enter rule out diagnosis"
+                      {...register("admitting_rod")}
+                      className="input"
+                      readOnly={isViewMode}
+                    />
+                  </div>
+
+                  {/* Consultant on Deck */}
+                  <div>
+                    <label
+                      htmlFor="consultant_on_deck"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Consultant on Deck
+                    </label>
+                    <input
+                      id="consultant_on_deck"
+                      type="text"
+                      placeholder="Enter consultant name"
+                      {...register("consultant_on_deck")}
+                      className="input"
+                      readOnly={isViewMode}
+                    />
+                  </div>
+
+                  {/* ER Nurse on Duty */}
+                  <div>
+                    <label
+                      htmlFor="er_nurse_on_duty"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      ER Nurse on Duty
+                    </label>
+                    <input
+                      id="er_nurse_on_duty"
+                      type="text"
+                      placeholder="Enter ER nurse name"
+                      {...register("er_nurse_on_duty")}
+                      className="input"
+                      readOnly={isViewMode}
+                    />
+                  </div>
+
                   {/* PDF File Upload */}
                   <div className="md:col-span-2">
                     <label
@@ -579,13 +771,13 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
                         Current file: {record.pdf_file_path.split('/').pop()}
                       </p>
                     )}
-                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
+                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-2xl hover:border-gray-400 transition-colors">
                       <div className="space-y-1 text-center">
                         <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
                         <div className="flex text-sm text-gray-600">
                           <label
                             htmlFor="pdf_file"
-                            className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                            className="relative cursor-pointer bg-white rounded-2xl font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
                           >
                             <span>Upload a PDF file</span>
                             <input
@@ -624,14 +816,14 @@ const MedicalRecordModal: React.FC<MedicalRecordModalProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="btn-secondary"
+                    className="btn btn-secondary"
                     disabled={loading}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="btn-primary"
+                    className="btn btn-primary"
                     disabled={loading}
                   >
                     {loading ? (

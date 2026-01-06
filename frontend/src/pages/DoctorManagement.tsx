@@ -8,6 +8,7 @@ import {
   CheckIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const DoctorManagement: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -15,6 +16,7 @@ const DoctorManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; doctorId: number | null }>({ show: false, doctorId: null });
   const [formData, setFormData] = useState({
     full_name: "",
     department_id: "",
@@ -113,11 +115,15 @@ const DoctorManagement: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm("Are you sure you want to delete this doctor?")) {
+  const handleDelete = (id: number) => {
+    setDeleteConfirm({ show: true, doctorId: id });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirm.doctorId) {
       try {
-        await doctorsApi.delete(id);
-        setDoctors(doctors.filter((doctor) => doctor.id !== id));
+        await doctorsApi.delete(deleteConfirm.doctorId);
+        setDoctors(doctors.filter((doctor) => doctor.id !== deleteConfirm.doctorId));
       } catch (error) {
         console.error("Error deleting doctor:", error);
         alert("Failed to delete doctor. Please try again.");
@@ -175,19 +181,19 @@ const DoctorManagement: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Doctor
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Department
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Contact
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -195,17 +201,17 @@ const DoctorManagement: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {doctors.map((doctor) => (
                   <tr key={doctor.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm font-medium text-gray-900">
                         {doctor.full_name}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-900">
                         {doctor.department?.name || "N/A"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="text-sm text-gray-900">
                         {doctor.email}
                       </div>
@@ -213,10 +219,10 @@ const DoctorManagement: React.FC = () => {
                         {doctor.phone}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       {getStatusBadge(doctor.status)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleOpenModal(doctor)}
@@ -370,6 +376,16 @@ const DoctorManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.show}
+        onClose={() => setDeleteConfirm({ show: false, doctorId: null })}
+        onConfirm={confirmDelete}
+        title="Delete Doctor"
+        message="Are you sure you want to delete this doctor? This action cannot be undone."
+        confirmText="Delete"
+        type="danger"
+      />
     </div>
   );
 };

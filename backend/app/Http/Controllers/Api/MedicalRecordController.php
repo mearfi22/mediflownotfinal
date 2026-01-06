@@ -41,6 +41,15 @@ class MedicalRecordController extends Controller
             'notes' => 'nullable|string',
             'doctor_name' => 'required|string|max:255',
             'pdf_file' => 'required|file|mimes:pdf|max:10240', // 10MB max - REQUIRED for new records
+            // Admission fields
+            'admission_date' => 'nullable|date',
+            'admission_time' => 'nullable|date_format:H:i',
+            'ward_room' => 'nullable|string|max:255',
+            'admitting_remarks' => 'nullable|string',
+            'admitting_diagnosis' => 'nullable|string',
+            'admitting_rod' => 'nullable|string',
+            'consultant_on_deck' => 'nullable|string|max:255',
+            'er_nurse_on_duty' => 'nullable|string|max:255',
         ]);
 
         // Handle PDF file upload
@@ -78,6 +87,15 @@ class MedicalRecordController extends Controller
             'notes' => 'nullable|string',
             'doctor_name' => 'sometimes|required|string|max:255',
             'pdf_file' => 'nullable|file|mimes:pdf|max:10240', // 10MB max
+            // Admission fields
+            'admission_date' => 'nullable|date',
+            'admission_time' => 'nullable|date_format:H:i',
+            'ward_room' => 'nullable|string|max:255',
+            'admitting_remarks' => 'nullable|string',
+            'admitting_diagnosis' => 'nullable|string',
+            'admitting_rod' => 'nullable|string',
+            'consultant_on_deck' => 'nullable|string|max:255',
+            'er_nurse_on_duty' => 'nullable|string|max:255',
         ]);
 
         // Handle PDF file upload

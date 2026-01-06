@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\SystemSettingController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\SystemAnalyticsController;
+use App\Http\Controllers\Api\NotificationController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -33,6 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth routes
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    Route::put('/profile', [UserController::class, 'updateProfile']);
 
     // Patients
     Route::apiResource('patients', PatientController::class);
@@ -65,6 +67,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/staff-list', [UserController::class, 'getStaff']);
     Route::get('/doctor-users', [UserController::class, 'getDoctorUsers']);
     Route::post('/users/{user}/toggle-status', [UserController::class, 'toggleStatus']);
+    Route::get('/users-pending', [UserController::class, 'getPendingUsers']);
+    Route::post('/users/{user}/approve', [UserController::class, 'approveUser']);
+    Route::post('/users/{user}/reject', [UserController::class, 'rejectUser']);
 
     // Department Management (Admin only)
     Route::apiResource('departments', DepartmentController::class)->except(['index', 'show']);
@@ -76,6 +81,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Audit Logs (Admin only)
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
     Route::get('/audit-logs/statistics', [AuditLogController::class, 'statistics']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/{notification}/mark-read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy']);
 
     // System Analytics (Admin only)
     Route::get('/system-analytics/dashboard', [SystemAnalyticsController::class, 'dashboard']);

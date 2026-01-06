@@ -33,47 +33,49 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      {/* Red header bar */}
-      <div className="absolute top-0 left-0 right-0 h-12 bg-primary"></div>
-
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg border-4 border-primary">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-lg">R</span>
-            </div>
+          <div className="w-20 h-20 bg-red-700 rounded-full flex items-center justify-center shadow-lg">
+            <span className="text-white font-bold text-3xl">M</span>
           </div>
         </div>
-        <h2 className="text-center text-xl font-bold text-primary mb-2">
-          Roxas Memorial Provincial Hospital
+        <h2 className="text-center text-3xl font-bold text-gray-900 mb-2">
+          Roxas Memorial <span className="text-gray-900">Provincial Hospital</span>
         </h2>
+        <p className="text-center text-gray-600 mt-2">Healthcare Excellence Through Innovation</p>
       </div>
 
-      <div className="mt-4 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-lg sm:rounded-lg border border-gray-200">
-          <form className="space-y-4" onSubmit={handleSubmit}>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-6 shadow-xl sm:rounded-xl border border-gray-200">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
             <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
               <input
                 id="email"
                 name="email"
                 type="email"
                 autoComplete="email"
                 required
-                placeholder="Username"
-                className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                placeholder="Enter your email"
+                className="input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
             <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
               <div className="relative">
                 <input
                   id="password"
@@ -81,8 +83,8 @@ const Login: React.FC = () => {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
-                  placeholder="Password"
-                  className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary pr-10"
+                  placeholder="Enter your password"
+                  className="input pr-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -92,9 +94,9 @@ const Login: React.FC = () => {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
@@ -104,53 +106,47 @@ const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-primary hover:bg-primary-dark text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-primary w-full"
               >
-                {loading ? "Signing in..." : "Login"}
+                {loading ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Signing in...</span>
+                  </div>
+                ) : (
+                  "Login"
+                )}
               </button>
             </div>
 
             <div className="text-center">
               <a
                 href="#"
-                className="text-primary text-sm hover:text-primary-dark"
+                className="text-sm text-blue-700 hover:text-blue-900 font-medium"
               >
                 Forgot Password?
               </a>
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  Demo Accounts
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-1">
-              <div className="text-xs text-gray-500">
-                <p>
-                  <strong>Admin:</strong> admin@mediflow.com / password
-                </p>
-                <p>
-                  <strong>Staff:</strong> staff@mediflow.com / password
-                </p>
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="text-center space-y-3">
+              <p className="text-sm text-gray-600 mb-3">Don't have an account?</p>
+              <div className="flex flex-col space-y-2">
+                <Link
+                  to="/register"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-blue-700 text-sm font-medium rounded-lg text-blue-700 bg-white hover:bg-blue-50 transition-colors"
+                >
+                  Register as Staff or Doctor
+                </Link>
+                <Link
+                  to="/pre-register"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                >
+                  Patient Pre-registration
+                </Link>
               </div>
             </div>
-          </div>
-
-          <div className="mt-6 text-center">
-            <Link
-              to="/pre-register"
-              className="text-primary hover:text-primary-dark text-sm font-medium"
-            >
-              Patient Pre-registration →
-            </Link>
           </div>
         </div>
       </div>
